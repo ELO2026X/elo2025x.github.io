@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELO2026X | SIMULATION DECK</title>
+    <!-- Tailwind for UI overlay -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Glitch Effect for Title */
+        .glitch-text {
+            color: #00f3ff;
+            text-shadow: 2px 2px #ff003c;
+            animation: glitch 1s infinite alternate;
+        }
+
+        @keyframes glitch {
+            0% {
+                text-shadow: 2px 2px #ff003c;
+                transform: translate(0, 0);
+            }
+
+            20% {
+                text-shadow: -2px -2px #00f3ff;
+                transform: translate(-1px, 1px);
+            }
+
+            40% {
+                text-shadow: 2px -2px #ff003c;
+                transform: translate(1px, -1px);
+            }
+
+            100% {
+                text-shadow: -2px 2px #00f3ff;
+                transform: translate(0, 0);
+            }
+        }
+    </style>
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer" class="flex flex-col justify-between p-6">
+        <header>
+            <h1 class="text-4xl font-bold glitch-text">SIMULATION DECK // LEVEL 01</h1>
+            <p class="text-green-500 text-sm mt-2">SYSTEM: ONLINE // PHYSICS: ACTIVE</p>
+        </header>
+
+        <div class="absolute bottom-6 left-6 text-white text-sm bg-black/50 p-4 rounded border border-cyan-500/30">
+            <p class="text-cyan-400 font-bold mb-2">CONTROLS:</p>
+            <ul class="space-y-1 text-gray-400">
+                <li><span class="text-white font-mono">[W,A,S,D]</span> MOVE</li>
+                <li><span class="text-white font-mono">[SPACE]</span> JUMP</li>
+                <li><span class="text-white font-mono">[SHIFT]</span> SPRINT</li>
+                <li><span class="text-white font-mono">[MOUSE]</span> LOOK</li>
+            </ul>
+        </div>
+
+        <div class="absolute top-6 right-6">
+            <a href="../index.html"
+                class="interactive bg-red-900/20 border border-red-500 text-red-500 px-6 py-2 hover:bg-red-500 hover:text-white transition-colors">EXIT
+                SIMULATION</a>
+        </div>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>
