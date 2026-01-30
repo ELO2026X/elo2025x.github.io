@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
 
 // --- CONFIGURATION ---
 const CONFIG = {
@@ -14,7 +17,7 @@ const CONFIG = {
 };
 
 // --- GLOBAL VARIABLES ---
-let scene, camera, renderer, controls;
+let scene, camera, renderer, controls, composer;
 let clock, delta;
 let player, playerVelocity, playerDirection;
 const keyState = {};
@@ -73,6 +76,15 @@ function init() {
     document.addEventListener('keyup', (e) => keyState[e.code] = false);
 
     clock = new THREE.Clock();
+
+    // 9. Post-Processing
+    composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const glitchPass = new GlitchPass();
+    glitchPass.goWild = false;
+    composer.addPass(glitchPass);
 
     // Start Loop
     animate();
@@ -393,6 +405,7 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
 function updateCoins(dt) {
@@ -414,7 +427,11 @@ function animate() {
     updatePlayer(delta);
     controls.update();
 
-    renderer.render(scene, camera);
+    if (composer) {
+        composer.render();
+    } else {
+        renderer.render(scene, camera);
+    }
 }
 
 // Start

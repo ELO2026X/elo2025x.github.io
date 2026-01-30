@@ -77,13 +77,31 @@
 <body>
     <div id="canvas-container"></div>
 
-    <div id="ui-layer" class="flex flex-col justify-between p-6">
+    <!-- YouTube Audio Embed (1x1 pixel for browser autoplay policy compliance) -->
+    <div id="player"
+        style="position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none;">
+    </div>
+
+    <!-- Start Overlay (Required for Audio) -->
+    <div id="start-overlay" class="absolute inset-0 bg-black z-50 flex items-center justify-center flex-col">
+        <h1 class="text-6xl font-bold glitch-text mb-4">SIMULATION DECK</h1>
+        <button id="start-btn"
+            class="border border-green-500 text-green-500 hover:bg-green-500 hover:text-black px-8 py-3 font-mono text-xl tracking-widest transition-all">INITIALIZE
+            SYSTEM</button>
+        <p class="text-gray-500 mt-4 text-xs font-mono">ESTABLISHING NEURAL LINK...</p>
+        <p id="audio-status" class="text-red-500 mt-2 text-xs font-mono hidden">AUDIO STREAM SIGNAL LOST - RETRYING...
+        </p>
+    </div>
+
+    <div id="ui-layer" class="flex flex-col justify-between p-6 opacity-0 transition-opacity duration-1000"
+        id="main-ui">
         <header>
             <h1 class="text-4xl font-bold glitch-text">SIMULATION DECK // LEVEL 01</h1>
-            <p class="text-green-500 text-sm mt-2">SYSTEM: ONLINE // PHYSICS: ACTIVE</p>
+            <p class="text-green-500 text-sm mt-2">SYSTEM: ONLINE // PHYSICS: ACTIVE // MUSIC: OSAMU SATO</p>
         </header>
 
-        <div class="absolute bottom-6 left-6 text-white text-sm bg-black/50 p-4 rounded border border-cyan-500/30">
+        <div
+            class="absolute bottom-6 left-6 text-white text-sm bg-black/50 p-4 rounded border border-cyan-500/30 pointer-events-none">
             <p class="text-cyan-400 font-bold mb-2">CONTROLS:</p>
             <ul class="space-y-1 text-gray-400">
                 <li><span class="text-white font-mono">[W,A,S,D]</span> MOVE</li>
@@ -101,6 +119,66 @@
     </div>
 
     <script type="module" src="./js/main.js"></script>
+
+    <!-- YouTube Logic -->
+    <script>
+        // YouTube API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        var player;
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '1',
+                width: '1',
+                videoId: 'rMWjT15icmQ', // Osamu Sato
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': 0,
+                    'loop': 1,
+                    'playlist': 'rMWjT15icmQ',
+                    'autoplay': 0,
+                    'origin': window.location.origin
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log("Audio Player Ready");
+            player.setVolume(50);
+        }
+
+        function onPlayerError(event) {
+            console.error("YouTube Player Error:", event.data);
+            document.getElementById('audio-status').classList.remove('hidden');
+        }
+
+        // Start Button Logic
+        const startBtn = document.getElementById('start-btn');
+        const overlay = document.getElementById('start-overlay');
+        const mainUi = document.getElementById('main-ui');
+
+        startBtn.addEventListener('click', () => {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 500);
+
+            mainUi.classList.remove('opacity-0');
+            mainUi.classList.add('opacity-100');
+
+            if (player && typeof player.playVideo === 'function') {
+                player.unMute();
+                player.playVideo();
+            } else {
+                console.warn("Player not ready.");
+            }
+        });
+    </script>
 </body>
 
 </html>
