@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // --- CONFIGURATION ---
 const CONFIG = {
@@ -34,10 +36,12 @@ function init() {
     camera.position.set(0, 5, 10);
 
     // 3. Renderer Setup
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: false }); // Antialias false is better for post processing
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Tone mapping for Bloom
+    renderer.toneMapping = THREE.ReinhardToneMapping;
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     // 4. Lighting
@@ -77,14 +81,29 @@ function init() {
 
     clock = new THREE.Clock();
 
-    // 9. Post-Processing
+    // 9. Psychedelic Post-Processing
     composer = new EffectComposer(renderer);
+
+    // Pass 1: Render Scene
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
 
-    const glitchPass = new GlitchPass();
-    glitchPass.goWild = false;
-    composer.addPass(glitchPass);
+    // Pass 2: Unreal Bloom (Glow)
+    // resolution, strength, radius, threshold
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+    bloomPass.strength = 1.5;
+    bloomPass.radius = 0.5;
+    bloomPass.threshold = 0.1; // Glows easily
+    composer.addPass(bloomPass);
+
+    // Pass 3: AfterImage (Trails)
+    const afterimagePass = new AfterimagePass();
+    afterimagePass.uniforms['damp'].value = 0.8; // High value = longer trails
+    composer.addPass(afterimagePass);
+
+    // Pass 4: Output (Color correction)
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
 
     // Start Loop
     animate();
@@ -120,7 +139,7 @@ function createDetailedEnvironment() {
     // 3. PROCEDURAL GOTHIC BUILDINGS
     const buildingMat = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.9 });
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x151520, roughness: 0.9 });
-    const windowMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 2 });
+    const windowMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 2 }); // Glows with bloom
 
     for (let i = 0; i < 80; i++) {
         const x = (Math.random() - 0.5) * CONFIG.worldSize * 0.9;
@@ -197,8 +216,8 @@ function createDetailedEnvironment() {
 
     // Floating Blocks & Coins
     const blockMat = new THREE.MeshStandardMaterial({ color: 0xcc5500, metalness: 0.4 }); // Brick color
-    const qBlockMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800, emissiveIntensity: 0.2 }); // Gold
-    const coinMat = new THREE.MeshStandardMaterial({ color: 0xffff00, metalness: 1, roughness: 0.2, emissive: 0xaa8800 });
+    const qBlockMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800, emissiveIntensity: 2 }); // Gold Glow
+    const coinMat = new THREE.MeshStandardMaterial({ color: 0xffff00, metalness: 1, roughness: 0.2, emissive: 0xaa8800, emissiveIntensity: 1 });
 
     for (let i = 0; i < 40; i++) {
         const type = Math.random();
@@ -235,7 +254,7 @@ function createDetailedEnvironment() {
         }
     }
 
-    // 5. PARTICLES (Glitch/Magic)
+    // 5. PARTICLES (Magic Dust)
     const particleCount = 1500;
     const particlesGeo = new THREE.BufferGeometry();
     const posArray = new Float32Array(particleCount * 3);
@@ -247,7 +266,7 @@ function createDetailedEnvironment() {
         size: 0.2,
         color: 0x00f3ff,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.8,
         blending: THREE.AdditiveBlending
     });
     const particles = new THREE.Points(particlesGeo, particlesMat);
@@ -267,7 +286,7 @@ function createPsychedelicCreatures() {
     const headMat = new THREE.MeshStandardMaterial({
         color: 0xffff00,
         emissive: 0xaa00aa,
-        emissiveIntensity: 0.2,
+        emissiveIntensity: 0.5, // Glow setup
         roughness: 0.2
     });
     const head = new THREE.Mesh(headGeo, headMat);
@@ -295,10 +314,11 @@ function createPsychedelicCreatures() {
     // Wings (Fan shape behind)
     for (let i = 0; i < 12; i++) {
         const wingGeo = new THREE.BoxGeometry(20, 0.5, 4);
-        const wingMat = new THREE.MeshStandardMaterial({ color: 0xff003c });
+        const wingMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff003c, emissiveIntensity: 0.5 });
         const wing = new THREE.Mesh(wingGeo, wingMat);
         wing.position.set(0, 0, -2);
         wing.rotation.z = (Math.PI / 6) * i;
+        wing.userData = { isWing: true, initRot: (Math.PI / 6) * i, index: i };
         headGroup.add(wing);
     }
 
@@ -392,11 +412,23 @@ function updateCreatures(dt, time) {
             // Totem animation
             obj.rotation.y = Math.sin(time * 0.5) * 0.2;
             obj.position.y = 15 + Math.sin(time) * 2;
+
+            // Pulse Scale
+            const scale = 1 + Math.sin(time * 5) * 0.05;
+            obj.scale.set(scale, scale, scale);
+
+            // Wings Rotate
+            obj.children.forEach(child => {
+                if (child.userData.isWing) {
+                    child.rotation.z = child.userData.initRot + Math.sin(time * 2 + child.userData.index) * 0.2;
+                }
+            });
         }
         if (obj.userData.isWatcher) {
-            // Watchers bobbing
+            // Watchers bobbing and spinning
             obj.position.y += Math.sin(time * 2 + obj.userData.bobOffset) * 0.05 * dt;
             obj.lookAt(player.position); // Stare at player
+            obj.rotation.z += dt * 0.5; // Slow spin of the eye unit
         }
     });
 }

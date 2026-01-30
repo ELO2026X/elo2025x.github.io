@@ -97,7 +97,8 @@
         id="main-ui">
         <header>
             <h1 class="text-4xl font-bold glitch-text">SIMULATION DECK // LEVEL 01</h1>
-            <p class="text-green-500 text-sm mt-2">SYSTEM: ONLINE // PHYSICS: ACTIVE // MUSIC: OSAMU SATO</p>
+            <p class="text-green-500 text-sm mt-2">SYSTEM: ONLINE // PHYSICS: ACTIVE // MUSIC: OSAMU SATO + INFECTED
+                MUSHROOM</p>
         </header>
 
         <div
@@ -123,17 +124,6 @@
     <!-- YouTube Logic -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Check for potential AdBlockers blocking the script
-            setTimeout(() => {
-                if (!window.YT) {
-                    const status = document.getElementById('audio-status');
-                    if (status) {
-                        status.innerText = "YOUTUBE API BLOCKED. DISABLE AD BLOCKER.";
-                        status.classList.remove('hidden');
-                    }
-                }
-            }, 3000);
-
             // Start Button Logic
             const startBtn = document.getElementById('start-btn');
             const overlay = document.getElementById('start-overlay');
@@ -153,19 +143,13 @@
                     if (player && typeof player.playVideo === 'function') {
                         player.unMute();
                         player.playVideo();
-                        statusText.classList.add('hidden'); // Hide error if playing
+                        if (statusText) statusText.classList.add('hidden');
                     } else {
                         console.warn("Player not ready.");
-                        statusText.innerText = "AUDIO SYSTEM INITIALIZING...";
-                        statusText.classList.remove('hidden');
-                        // Try again in a bit
-                        setTimeout(() => {
-                            if (player && player.playVideo) {
-                                player.unMute();
-                                player.playVideo();
-                                statusText.classList.add('hidden');
-                            }
-                        }, 2000);
+                        if (statusText) {
+                            statusText.innerText = "BUFFERING STREAM...";
+                            statusText.classList.remove('hidden');
+                        }
                     }
                 });
             }
@@ -179,12 +163,10 @@
 
         var player;
         function onYouTubeIframeAPIReady() {
-            console.log("YouTube API Ready");
             player = new YT.Player('player', {
                 height: '1',
                 width: '1',
-                // Osamu Sato + Infected Mushroom Playlist
-                // rMWjT15icmQ (Osamu Sato), h4YvkZeLrjs (IM Heavyweight), dCl2K39hR_g (IM Converting Vegetarians)
+                // Playlist: Osamu Sato (rMWjT15icmQ), Infected Mushroom Heavyweight (h4YvkZeLrjs), Converting Vegetarians (dCl2K39hR_g)
                 playerVars: {
                     'playsinline': 1,
                     'controls': 0,
@@ -202,21 +184,17 @@
 
         function onPlayerReady(event) {
             console.log("Audio Player Ready");
-            player.setVolume(60);
-            player.setLoop(true); // Ensure loop matches playlist
+            player.setVolume(70);
+            player.setLoop(true);
         }
 
         function onPlayerError(event) {
             console.error("YouTube Player Error:", event.data);
             const status = document.getElementById('audio-status');
             if (status) {
-                if (event.data === 150 || event.data === 101) {
-                    status.innerText = "AUDIO BLOCKED BY OWNER/ADBLOCK. TRYING NEXT TRACK.";
-                    if (player && player.nextVideo) player.nextVideo();
-                } else {
-                    status.innerText = "AUDIO STREAM SIGNAL LOST (ERR " + event.data + ")";
-                }
+                status.innerText = "STREAM ERROR " + event.data + ". TRYING NEXT...";
                 status.classList.remove('hidden');
+                if (player && player.nextVideo) player.nextVideo();
             }
         }
     </script>
