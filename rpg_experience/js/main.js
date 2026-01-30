@@ -1,10 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // --- CONFIGURATION ---
 const CONFIG = {
@@ -19,9 +14,9 @@ const CONFIG = {
 };
 
 // --- GLOBAL VARIABLES ---
-let scene, camera, renderer, controls, composer;
+let scene, camera, renderer, controls;
 let clock, delta;
-let player, playerVelocity, playerDirection;
+let player, playerVelocity;
 const keyState = {};
 
 // --- INITIALIZATION ---
@@ -36,12 +31,10 @@ function init() {
     camera.position.set(0, 5, 10);
 
     // 3. Renderer Setup
-    renderer = new THREE.WebGLRenderer({ antialias: false }); // Antialias false is better for post processing
+    renderer = new THREE.WebGLRenderer({ antialias: true }); // Clean edges
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    // Tone mapping for Bloom
-    renderer.toneMapping = THREE.ReinhardToneMapping;
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     // 4. Lighting
@@ -81,30 +74,6 @@ function init() {
 
     clock = new THREE.Clock();
 
-    // 9. Psychedelic Post-Processing
-    composer = new EffectComposer(renderer);
-
-    // Pass 1: Render Scene
-    const renderPass = new RenderPass(scene, camera);
-    composer.addPass(renderPass);
-
-    // Pass 2: Unreal Bloom (Glow)
-    // resolution, strength, radius, threshold
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-    bloomPass.strength = 1.5;
-    bloomPass.radius = 0.5;
-    bloomPass.threshold = 0.1; // Glows easily
-    composer.addPass(bloomPass);
-
-    // Pass 3: AfterImage (Trails)
-    const afterimagePass = new AfterimagePass();
-    afterimagePass.uniforms['damp'].value = 0.8; // High value = longer trails
-    composer.addPass(afterimagePass);
-
-    // Pass 4: Output (Color correction)
-    const outputPass = new OutputPass();
-    composer.addPass(outputPass);
-
     // Start Loop
     animate();
 }
@@ -139,7 +108,7 @@ function createDetailedEnvironment() {
     // 3. PROCEDURAL GOTHIC BUILDINGS
     const buildingMat = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.9 });
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x151520, roughness: 0.9 });
-    const windowMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 2 }); // Glows with bloom
+    const windowMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 2 });
 
     for (let i = 0; i < 80; i++) {
         const x = (Math.random() - 0.5) * CONFIG.worldSize * 0.9;
@@ -171,13 +140,12 @@ function createDetailedEnvironment() {
         roof.rotation.y = Math.PI / 4;
         bGroup.add(roof);
 
-        // Windows (Randomly placed glowing planes)
+        // Windows
         for (let w = 0; w < 4; w++) {
             if (Math.random() > 0.5) continue;
             const winGeo = new THREE.PlaneGeometry(1, 2);
             const win = new THREE.Mesh(winGeo, windowMat);
 
-            // Simple placement logic (front face or side face)
             if (Math.random() > 0.5) {
                 win.position.set(0, (Math.random() * height * 0.6) + 2, depth / 2 + 0.1);
             } else {
@@ -190,7 +158,7 @@ function createDetailedEnvironment() {
         scene.add(bGroup);
     }
 
-    // 4. PIPES & BLOCKS (Mario Elements)
+    // 4. PIPES & BLOCKS
     const pipeMat = new THREE.MeshStandardMaterial({ color: 0x00aa00, roughness: 0.2, metalness: 0.5 });
     for (let i = 0; i < 8; i++) {
         const pipeGroup = new THREE.Group();
@@ -207,7 +175,6 @@ function createDetailedEnvironment() {
             0,
             (Math.random() - 0.5) * 60
         );
-        // Ensure not in center
         if (pipeGroup.position.length() < 10) pipeGroup.position.x += 20;
 
         pipeGroup.traverse(c => { if (c.isMesh) c.castShadow = c.receiveShadow = true; });
@@ -215,8 +182,8 @@ function createDetailedEnvironment() {
     }
 
     // Floating Blocks & Coins
-    const blockMat = new THREE.MeshStandardMaterial({ color: 0xcc5500, metalness: 0.4 }); // Brick color
-    const qBlockMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800, emissiveIntensity: 2 }); // Gold Glow
+    const blockMat = new THREE.MeshStandardMaterial({ color: 0xcc5500, metalness: 0.4 });
+    const qBlockMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800, emissiveIntensity: 2 });
     const coinMat = new THREE.MeshStandardMaterial({ color: 0xffff00, metalness: 1, roughness: 0.2, emissive: 0xaa8800, emissiveIntensity: 1 });
 
     for (let i = 0; i < 40; i++) {
@@ -228,34 +195,29 @@ function createDetailedEnvironment() {
         );
 
         if (type > 0.6) {
-            // Brick Block
             const block = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), blockMat);
             block.position.copy(pos);
             block.castShadow = true;
             scene.add(block);
         } else if (type > 0.3) {
-            // ? Block
             const qBlock = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), qBlockMat);
             qBlock.position.copy(pos);
             qBlock.castShadow = true;
-
-            // Add a simple light to it
             const qLight = new THREE.PointLight(0xffaa00, 1, 10);
             qLight.position.copy(pos);
             scene.add(qLight);
             scene.add(qBlock);
         } else {
-            // Coin
             const coin = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.2, 16), coinMat);
-            coin.rotation.x = Math.PI / 2; // Flat facing player initially
+            coin.rotation.x = Math.PI / 2;
             coin.position.copy(pos);
             coin.userData = { isCoin: true, rotSpeed: Math.random() * 2 + 1 };
             scene.add(coin);
         }
     }
 
-    // 5. PARTICLES (Magic Dust)
-    const particleCount = 1500;
+    // 5. PARTICLES (Reduced/Cleaned)
+    const particleCount = 500;
     const particlesGeo = new THREE.BufferGeometry();
     const posArray = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount * 3; i++) {
@@ -266,7 +228,7 @@ function createDetailedEnvironment() {
         size: 0.2,
         color: 0x00f3ff,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.4,
         blending: THREE.AdditiveBlending
     });
     const particles = new THREE.Points(particlesGeo, particlesMat);
@@ -274,25 +236,19 @@ function createDetailedEnvironment() {
 }
 
 function createPsychedelicCreatures() {
-    // "EQUAL" / Osamu Sato Style Entity
-    // A centralized totem with a face, wings, and floating eyes
-
-    // 1. The Head (Bright Yellow Sphere + Face elements)
     const headGroup = new THREE.Group();
-    headGroup.position.set(0, 15, -40); // Hovering in the distance
+    headGroup.position.set(0, 15, -40);
 
-    // Main Face Shape
     const headGeo = new THREE.SphereGeometry(6, 32, 32);
     const headMat = new THREE.MeshStandardMaterial({
         color: 0xffff00,
         emissive: 0xaa00aa,
-        emissiveIntensity: 0.5, // Glow setup
+        emissiveIntensity: 0.5,
         roughness: 0.2
     });
     const head = new THREE.Mesh(headGeo, headMat);
     headGroup.add(head);
 
-    // Eyes (Cyan Discs)
     const eyeGeo = new THREE.SphereGeometry(1.5, 16, 16);
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
@@ -304,14 +260,12 @@ function createPsychedelicCreatures() {
     rightEye.position.set(2.5, 1, 5);
     headGroup.add(rightEye);
 
-    // Mouth (Torus Knot)
     const mouthGeo = new THREE.TorusKnotGeometry(1, 0.3, 64, 8);
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     const mouth = new THREE.Mesh(mouthGeo, mouthMat);
     mouth.position.set(0, -3, 5);
     headGroup.add(mouth);
 
-    // Wings (Fan shape behind)
     for (let i = 0; i < 12; i++) {
         const wingGeo = new THREE.BoxGeometry(20, 0.5, 4);
         const wingMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff003c, emissiveIntensity: 0.5 });
@@ -322,16 +276,9 @@ function createPsychedelicCreatures() {
         headGroup.add(wing);
     }
 
-    // Halo Rings
-    const ringGeo = new THREE.TorusGeometry(10, 0.5, 16, 100);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    headGroup.add(ring);
-
     headGroup.userData = { isCreature: true, speed: 0.5 };
     scene.add(headGroup);
 
-    // 2. Floating "Watchers" (Smaller eyes everywhere)
     const watcherGeo = new THREE.SphereGeometry(1, 16, 16);
     const watcherMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const irisGeo = new THREE.SphereGeometry(0.5, 16, 16);
@@ -351,22 +298,84 @@ function createPsychedelicCreatures() {
             (Math.random() - 0.5) * 100
         );
 
-        wrapper.lookAt(0, 0, 0); // Always watch center
+        wrapper.lookAt(0, 0, 0);
         wrapper.userData = { isWatcher: true, bobOffset: Math.random() * 100 };
         scene.add(wrapper);
     }
 }
 
 function createPlayer() {
-    // Placeholder Cube Player
-    const geometry = new THREE.BoxGeometry(1, 2, 1);
-    const material = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0x330000 });
-    player = new THREE.Mesh(geometry, material);
-    player.position.y = 1;
-    player.castShadow = true;
-    scene.add(player);
+    // COMPOSITE PLAYER MODEL (CYBER-BOT)
+    player = new THREE.Group();
+    player.position.y = 0;
 
+    const armorColor = 0xff003c;
+    const jointColor = 0x222222;
+    const visorColor = 0x00f3ff;
+
+    const armorMat = new THREE.MeshStandardMaterial({ color: armorColor, roughness: 0.3, metalness: 0.8 });
+    const jointMat = new THREE.MeshStandardMaterial({ color: jointColor, roughness: 0.8 });
+    const visorMat = new THREE.MeshStandardMaterial({ color: visorColor, emissive: visorColor, emissiveIntensity: 2 });
+
+    // 1. TORSO
+    const torsoGeo = new THREE.BoxGeometry(1, 1.5, 0.6);
+    const torso = new THREE.Mesh(torsoGeo, armorMat);
+    torso.position.y = 1.7; // Center of torso
+    torso.castShadow = true;
+    player.add(torso);
+
+    // 2. HEAD
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 2.7, 0); // On top of torso
+
+    const helmetGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+    const helmet = new THREE.Mesh(helmetGeo, armorMat);
+    helmet.castShadow = true;
+    headGroup.add(helmet);
+
+    const visorGeo = new THREE.BoxGeometry(0.6, 0.3, 0.1);
+    const visor = new THREE.Mesh(visorGeo, visorMat);
+    visor.position.set(0, 0, 0.4); // Front of face
+    headGroup.add(visor);
+    player.add(headGroup);
+
+    // 3. ARMS
+    const createLimb = (x, y, z, w, h, d, mat) => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = true;
+        return mesh;
+    };
+
+    const leftShoulder = createLimb(-0.7, 2.2, 0, 0.4, 0.4, 0.4, jointMat);
+    player.add(leftShoulder);
+    const rightShoulder = createLimb(0.7, 2.2, 0, 0.4, 0.4, 0.4, jointMat);
+    player.add(rightShoulder);
+
+    // Arms attached to shoulders
+    const leftArm = createLimb(-0.7, 1.6, 0, 0.3, 1.0, 0.3, armorMat);
+    player.add(leftArm);
+    const rightArm = createLimb(0.7, 1.6, 0, 0.3, 1.0, 0.3, armorMat);
+    player.add(rightArm);
+
+    // 4. LEGS
+    const leftThigh = createLimb(-0.3, 0.8, 0, 0.35, 1.0, 0.35, jointMat);
+    player.add(leftThigh);
+    const rightThigh = createLimb(0.3, 0.8, 0, 0.35, 1.0, 0.35, jointMat);
+    player.add(rightThigh);
+
+    const leftBoot = createLimb(-0.3, 0.15, 0.1, 0.4, 0.3, 0.6, armorMat);
+    player.add(leftBoot);
+    const rightBoot = createLimb(0.3, 0.15, 0.1, 0.4, 0.3, 0.6, armorMat);
+    player.add(rightBoot);
+
+    scene.add(player);
     playerVelocity = new THREE.Vector3();
+
+    // Store references for animation (simple walk cycle later?)
+    player.userData = {
+        leftArm, rightArm, leftThigh, rightThigh
+    };
 }
 
 function updatePlayer(dt) {
@@ -392,32 +401,43 @@ function updatePlayer(dt) {
     camRight.crossVectors(camDir, new THREE.Vector3(0, 1, 0));
 
     const finalDir = new THREE.Vector3();
-    finalDir.addScaledVector(camDir, -moveDir.z); // -z because camera looks down negative z
+    finalDir.addScaledVector(camDir, -moveDir.z);
     finalDir.addScaledVector(camRight, moveDir.x);
 
-    if (finalDir.lengthSq() > 0) {
-        player.position.addScaledVector(finalDir, speed * dt);
+    let isMoving = false;
 
-        // Rotate player to face direction
+    if (finalDir.lengthSq() > 0) {
+        isMoving = true;
+        player.position.addScaledVector(finalDir, speed * dt);
         player.lookAt(player.position.clone().add(finalDir));
+
+        // Simple bobbing for walk animation
+        const time = Date.now() * 0.01;
+        player.userData.leftArm.rotation.x = Math.sin(time) * 0.5;
+        player.userData.rightArm.rotation.x = -Math.sin(time) * 0.5;
+        player.userData.leftThigh.rotation.x = -Math.sin(time) * 0.5;
+        player.userData.rightThigh.rotation.x = Math.sin(time) * 0.5;
+    } else {
+        // Reset limbs
+        player.userData.leftArm.rotation.x = 0;
+        player.userData.rightArm.rotation.x = 0;
+        player.userData.leftThigh.rotation.x = 0;
+        player.userData.rightThigh.rotation.x = 0;
     }
 
     // Follow camera slightly
     controls.target.copy(player.position);
+    // Keep camera at same relative distance
+    // (OrbitControls handles this mostly, but target update is key)
 }
 
 function updateCreatures(dt, time) {
     scene.traverse((obj) => {
         if (obj.userData.isCreature) {
-            // Totem animation
             obj.rotation.y = Math.sin(time * 0.5) * 0.2;
             obj.position.y = 15 + Math.sin(time) * 2;
-
-            // Pulse Scale
             const scale = 1 + Math.sin(time * 5) * 0.05;
             obj.scale.set(scale, scale, scale);
-
-            // Wings Rotate
             obj.children.forEach(child => {
                 if (child.userData.isWing) {
                     child.rotation.z = child.userData.initRot + Math.sin(time * 2 + child.userData.index) * 0.2;
@@ -425,10 +445,9 @@ function updateCreatures(dt, time) {
             });
         }
         if (obj.userData.isWatcher) {
-            // Watchers bobbing and spinning
             obj.position.y += Math.sin(time * 2 + obj.userData.bobOffset) * 0.05 * dt;
-            obj.lookAt(player.position); // Stare at player
-            obj.rotation.z += dt * 0.5; // Slow spin of the eye unit
+            obj.lookAt(player.position);
+            obj.rotation.z += dt * 0.5;
         }
     });
 }
@@ -437,7 +456,6 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
 function updateCoins(dt) {
@@ -459,11 +477,7 @@ function animate() {
     updatePlayer(delta);
     controls.update();
 
-    if (composer) {
-        composer.render();
-    } else {
-        renderer.render(scene, camera);
-    }
+    renderer.render(scene, camera);
 }
 
 // Start
