@@ -271,17 +271,7 @@ function updateCoins(dt) {
     });
 }
 
-function animate() {
-    requestAnimationFrame(animate);
 
-    delta = clock.getDelta();
-
-    updateCoins(delta);
-    updatePlayer(delta);
-    controls.update();
-
-    renderer.render(scene, camera);
-}
 
 // Start
 init();
