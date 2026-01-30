@@ -4,7 +4,7 @@
 
 ## Introduction: The Invisible Architecture
 
-The "Golden Crescent"—a seemingly idyllic cluster of South Texas counties—is governed by an invisible architecture of control. While the public sees a system of law and order, there exists a darker "franchise" of power. This ebook serves to expose the three pillars of this control: Media Dissonance, the Suppression Engine, and the Gaslighting Mechanisms that maintain the status quo.
+The "Golden Crescent" a seemingly idyllic cluster of South Texas counties is governed by an invisible architecture of control. While the public sees a system of law and order there exists a darker "franchise" of power. This ebook serves to expose the three pillars of this control: Media Dissonance, the Suppression Engine, and the Gaslighting Mechanisms that maintain the status quo.
 
 ## Part I: The Wall of Illusion (Media Dissonance)
 
@@ -70,7 +70,7 @@ The "Side Hug" is a violation. The "Stenographer" is a liar. The "Kill Switch" i
 
 ## Chapter 1: The Indictment Lag (The 3% Black Hole)
 
-In a functioning judicial system, outcomes across neighboring counties—governed by the same state laws and demographic realities—should be roughly comparable. In the Golden Crescent, they are statistically impossible.
+In a functioning judicial system, outcomes across neighboring counties governed by the same state laws and demographic realities should be roughly comparable. In the Golden Crescent, they are statistically impossible.
 
 We analyzed the **FY 2024-2025 SART Data** (Sexual Assault Response Team) submitted to the Victoria County Commissioners Court. This data serves as a "Control Group" experiment that exposes the suppression engine in Sector 77901.
 
