@@ -122,6 +122,55 @@
 
     <!-- YouTube Logic -->
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for potential AdBlockers blocking the script
+            setTimeout(() => {
+                if (!window.YT) {
+                    const status = document.getElementById('audio-status');
+                    if (status) {
+                        status.innerText = "YOUTUBE API BLOCKED. DISABLE AD BLOCKER.";
+                        status.classList.remove('hidden');
+                    }
+                }
+            }, 3000);
+
+            // Start Button Logic
+            const startBtn = document.getElementById('start-btn');
+            const overlay = document.getElementById('start-overlay');
+            const mainUi = document.getElementById('main-ui');
+            const statusText = document.getElementById('audio-status');
+
+            if (startBtn) {
+                startBtn.addEventListener('click', () => {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.style.display = 'none', 500);
+
+                    if (mainUi) {
+                        mainUi.classList.remove('opacity-0');
+                        mainUi.classList.add('opacity-100');
+                    }
+
+                    if (player && typeof player.playVideo === 'function') {
+                        player.unMute();
+                        player.playVideo();
+                        statusText.classList.add('hidden'); // Hide error if playing
+                    } else {
+                        console.warn("Player not ready.");
+                        statusText.innerText = "AUDIO SYSTEM INITIALIZING...";
+                        statusText.classList.remove('hidden');
+                        // Try again in a bit
+                        setTimeout(() => {
+                            if (player && player.playVideo) {
+                                player.unMute();
+                                player.playVideo();
+                                statusText.classList.add('hidden');
+                            }
+                        }, 2000);
+                    }
+                });
+            }
+        });
+
         // YouTube API
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -130,15 +179,17 @@
 
         var player;
         function onYouTubeIframeAPIReady() {
+            console.log("YouTube API Ready");
             player = new YT.Player('player', {
                 height: '1',
                 width: '1',
-                videoId: 'rMWjT15icmQ', // Osamu Sato
+                // Osamu Sato + Infected Mushroom Playlist
+                // rMWjT15icmQ (Osamu Sato), h4YvkZeLrjs (IM Heavyweight), dCl2K39hR_g (IM Converting Vegetarians)
                 playerVars: {
                     'playsinline': 1,
                     'controls': 0,
                     'loop': 1,
-                    'playlist': 'rMWjT15icmQ',
+                    'playlist': 'rMWjT15icmQ,h4YvkZeLrjs,dCl2K39hR_g',
                     'autoplay': 0,
                     'origin': window.location.origin
                 },
@@ -151,33 +202,23 @@
 
         function onPlayerReady(event) {
             console.log("Audio Player Ready");
-            player.setVolume(50);
+            player.setVolume(60);
+            player.setLoop(true); // Ensure loop matches playlist
         }
 
         function onPlayerError(event) {
             console.error("YouTube Player Error:", event.data);
-            document.getElementById('audio-status').classList.remove('hidden');
-        }
-
-        // Start Button Logic
-        const startBtn = document.getElementById('start-btn');
-        const overlay = document.getElementById('start-overlay');
-        const mainUi = document.getElementById('main-ui');
-
-        startBtn.addEventListener('click', () => {
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.style.display = 'none', 500);
-
-            mainUi.classList.remove('opacity-0');
-            mainUi.classList.add('opacity-100');
-
-            if (player && typeof player.playVideo === 'function') {
-                player.unMute();
-                player.playVideo();
-            } else {
-                console.warn("Player not ready.");
+            const status = document.getElementById('audio-status');
+            if (status) {
+                if (event.data === 150 || event.data === 101) {
+                    status.innerText = "AUDIO BLOCKED BY OWNER/ADBLOCK. TRYING NEXT TRACK.";
+                    if (player && player.nextVideo) player.nextVideo();
+                } else {
+                    status.innerText = "AUDIO STREAM SIGNAL LOST (ERR " + event.data + ")";
+                }
+                status.classList.remove('hidden');
             }
-        });
+        }
     </script>
 </body>
 
