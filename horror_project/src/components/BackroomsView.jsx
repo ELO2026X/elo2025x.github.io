@@ -118,6 +118,48 @@ const createRuinsColumn = () => {
     return group;
 };
 
+// --- NEW DECORATIONS ---
+const createTable = () => {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3), wood);
+    leg.position.y = 1.5;
+    g.add(leg);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 4), wood);
+    top.position.y = 3;
+    g.add(top);
+    return g;
+};
+
+const createBalloons = () => {
+    const g = new THREE.Group();
+    const mats = [
+        new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.2 }),
+        new THREE.MeshStandardMaterial({ color: 0x00ff00, roughness: 0.2 }),
+        new THREE.MeshStandardMaterial({ color: 0x0000ff, roughness: 0.2 }),
+    ];
+    for (let i = 0; i < 3; i++) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), mats[i]);
+        b.position.set((Math.random() - 0.5) * 1.5, 4 + Math.random() * 2, (Math.random() - 0.5) * 1.5);
+        g.add(b);
+
+        const string = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        string.position.set(b.position.x, b.position.y - 2, b.position.z);
+        g.add(string);
+    }
+    return g;
+};
+
+const createRock = () => {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), mat);
+    rock.scale.set(1 + Math.random(), 0.8 + Math.random(), 1 + Math.random());
+    rock.position.y = 0.5;
+    g.add(rock);
+    return g;
+};
+
 
 const BackroomsView = ({ onExit }) => {
     const containerRef = useRef();
@@ -158,7 +200,7 @@ const BackroomsView = ({ onExit }) => {
     const cornSpawns = useRef([]);
     const ruinsSpawns = useRef([]);
 
-    // --- NEW AUDIO SYSTEM ---
+    // --- AUDIO SYSTEM ---
     const audioTracks = useRef({});
     const currentTrack = useRef(null);
     const isChasingRef = useRef(false);
@@ -179,7 +221,7 @@ const BackroomsView = ({ onExit }) => {
         tracks.PARTY.loop = true;
         tracks.CORNFIELD.loop = true;
         tracks.RUINS.loop = true;
-        tracks.CHASE.loop = true; // Loop chase music too
+        tracks.CHASE.loop = true;
 
         // Volume Mix
         tracks.PARTY.volume = 0.6;
@@ -215,7 +257,6 @@ const BackroomsView = ({ onExit }) => {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // Pointer Lock & Mouse Look
         document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
         const handleClick = () => {
             if (!isInMenu && !gameOver) {
@@ -229,7 +270,7 @@ const BackroomsView = ({ onExit }) => {
             if (document.pointerLockElement === containerRef.current) {
                 sceneRef.current.camera.rotation.y -= e.movementX * 0.002;
                 sceneRef.current.camera.rotation.x -= e.movementY * 0.002;
-                // Clamp Pitch
+
                 sceneRef.current.camera.rotation.x = Math.max(-1.5, Math.min(1.5, sceneRef.current.camera.rotation.x));
                 sceneRef.current.camera.rotation.z = 0;
                 sceneRef.current.camera.rotation.order = "YXZ";
@@ -311,19 +352,20 @@ const BackroomsView = ({ onExit }) => {
         scene.add(cornfieldGroupRef.current);
         scene.add(ruinsGroupRef.current);
 
-        // --- GRID GENERATION ---
+        // --- INTEGAR GRID GENERATION ---
+        // 0=Empty, 1=Wall, 2=Prop1(Table/Rock), 3=Prop2(Balloons/Stick), 4=Light/Special
         const mazeGrid = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 2, 1, 0, 3, 0, 0, 2, 0, 1],
             [1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
-            [1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1],
+            [1, 4, 1, 0, 0, 0, 0, 1, 0, 1, 3, 1],
             [1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 3, 0, 0, 0, 1, 0, 0, 4, 0, 0, 1],
             [1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1],
-            [1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1],
+            [1, 0, 2, 1, 0, 0, 0, 1, 2, 1, 0, 1],
             [1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
             [1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1],
+            [1, 2, 0, 4, 0, 1, 2, 1, 0, 3, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ];
 
@@ -345,12 +387,36 @@ const BackroomsView = ({ onExit }) => {
                 pCeil.position.set(x, 4, z);
                 partyGroupRef.current.add(pCeil);
 
-                if (cell === 1) {
+                if (cell === 1) { // WALL
                     const wall = new THREE.Mesh(wallGeo, partyMat);
                     wall.position.set(x, 0, z);
                     wall.userData = { isBorder: true };
                     partyGroupRef.current.add(wall);
-                } else {
+                }
+                else if (cell === 2) { // TABLE
+                    const t = createTable();
+                    t.position.set(x, -4, z);
+                    partyGroupRef.current.add(t);
+
+                    // Table implies collision
+                    const coll = new THREE.Mesh(wallGeo, new THREE.MeshBasicMaterial({ visible: false }));
+                    coll.position.set(x, 0, z);
+                    coll.userData = { isBorder: true };
+                    partyGroupRef.current.add(coll);
+                }
+                else if (cell === 3) { // BALLOONS
+                    const b = createBalloons();
+                    b.position.set(x, -4, z);
+                    partyGroupRef.current.add(b);
+                    partySpawns.current.push({ x, z }); // Walkable
+                }
+                else if (cell === 4) { // LIGHT
+                    const l = new THREE.PointLight(0xff00ff, 2, 15); // Pink Party Light
+                    l.position.set(x, 2, z);
+                    partyGroupRef.current.add(l);
+                    partySpawns.current.push({ x, z });
+                }
+                else { // EMPTY
                     partySpawns.current.push({ x, z });
                     if (Math.random() > 0.9) {
                         const l = new THREE.PointLight(0xffaa00, 1, 10);
@@ -375,7 +441,18 @@ const BackroomsView = ({ onExit }) => {
                     cColl.position.set(x, 0, z);
                     cColl.userData = { isBorder: true };
                     cornfieldGroupRef.current.add(cColl);
-                } else {
+                }
+                else if (cell === 2) { // ROCK
+                    const rk = createRock();
+                    rk.position.set(x, -4, z);
+                    cornfieldGroupRef.current.add(rk);
+                    // Rock Collision
+                    const coll = new THREE.Mesh(wallGeo, new THREE.MeshBasicMaterial({ visible: false }));
+                    coll.position.set(x, 0, z);
+                    coll.userData = { isBorder: true };
+                    cornfieldGroupRef.current.add(coll);
+                }
+                else {
                     cornSpawns.current.push({ x, z });
                 }
             });
@@ -556,7 +633,8 @@ const BackroomsView = ({ onExit }) => {
                 pendingLevelSwitch.current = null;
             }
 
-            if (jumpScareRef.current || hasWonRef.current) return;
+            // EXPLORATION MODE - NO REMOVAL NEEDED HERE?
+            // Actually kill trigger was commented out.
 
             const time = performance.now();
             const delta = (time - lastTime) / 1000;
@@ -627,7 +705,12 @@ const BackroomsView = ({ onExit }) => {
                     // Grid Collision
                     const gridX = Math.round(nextX / cellSize);
                     const gridZ = Math.round(nextZ / cellSize);
-                    if (mazeGrid[gridZ] && mazeGrid[gridZ][gridX] === 1) collided = true;
+
+                    // Integer Grid Collision: 1 and 2 are usually blockers (Walls & Tables)
+                    if (mazeGrid[gridZ] && gridX >= 0 && gridX < mazeGrid[0].length) {
+                        const val = mazeGrid[gridZ][gridX];
+                        if (val === 1 || val === 2) collided = true;
+                    }
                 }
 
                 if (!collided) {
@@ -681,7 +764,8 @@ const BackroomsView = ({ onExit }) => {
                 // CHASE
                 if (dist < 40) {
                     chasing = true;
-                    // Exploration Mode: Stop at 6 units to allow "Exhibition"
+
+                    // Exploration Mode: Stop at 6 units
                     if (dist > 6.0) {
                         const dir = new THREE.Vector3().subVectors(camera.position, e.position).normalize();
                         dir.y = 0;
@@ -691,12 +775,7 @@ const BackroomsView = ({ onExit }) => {
 
                     if (e.userData.type !== 'HOST') e.lookAt(camera.position.x, e.position.y, camera.position.z);
 
-                    // NO KILL TRIGGER - EXPLORATION MODE
-                    // if (dist < 1.5) {
-                    //    jumpScareRef.current = true;
-                    //    setStatus("CAUGHT");
-                    //    setTimeout(() => window.location.reload(), 2000);
-                    // }
+                    // NO KILL TRIGGER
                 }
             });
 
