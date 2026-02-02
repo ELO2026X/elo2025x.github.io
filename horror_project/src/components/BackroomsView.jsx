@@ -143,17 +143,80 @@ const BackroomsView = ({ onExit }) => {
         });
         scene.add(mazeGroup);
 
-        // Ambient light (FLOODLIGHTS ON)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
+        // Ambient light (Dim, creepy)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambientLight);
 
-        // Player Light (Flashlight - SUPER BRIGHT)
-        const flashlight = new THREE.SpotLight(0xffffff, 8.0, 150, Math.PI / 4, 0.3, 1);
+        // Player Light (Flashlight - Focused and Bright)
+        const flashlight = new THREE.SpotLight(0xffffff, 5.0, 120, Math.PI / 6, 0.5, 1);
         flashlight.position.set(0, 0, 0);
         flashlight.target.position.set(0, 0, -1);
         camera.add(flashlight);
         camera.add(flashlight.target);
         scene.add(camera);
+
+        // ... (Inside animate loop)
+        enemies.forEach(enemy => {
+            // Always face camera (Billboard)
+            enemy.lookAt(camera.position.x, enemy.position.y, camera.position.z);
+
+            const dist = enemy.position.distanceTo(camera.position);
+
+            // Line of Sight
+            const dirToPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
+            const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 40);
+            const intersects = raycaster.intersectObjects(mazeGroup.children);
+
+            let canSee = false;
+            if (intersects.length === 0 || intersects[0].distance > dist) {
+                canSee = true;
+            }
+
+            // Update State
+            if (canSee && dist < 25) {
+                enemy.userData.state = 'CHASE';
+            } else {
+                enemy.userData.state = 'PATROL';
+            }
+
+            // "Glitch" & Movement Logic
+            if (enemy.userData.state === 'CHASE') {
+                // Base Speed
+                let speed = 5.0 * delta;
+
+                // 1. Random Glitch / Burst
+                // 2% chance per frame to "teleport" or "sprint"
+                if (Math.random() < 0.05) {
+                    // Micro-teleport forward (Jitter)
+                    enemy.position.x += dirToPlayer.x * 2.5;
+                    enemy.position.z += dirToPlayer.z * 2.5;
+                    console.log("Enemy Glitch-Jump!");
+                }
+
+                // 2. Stop and Stare (Unpredictable)
+                // 1% chance to just freeze for a moment
+                if (Math.random() < 0.01) {
+                    speed = 0;
+                }
+
+                enemy.position.x += dirToPlayer.x * speed;
+                enemy.position.z += dirToPlayer.z * speed;
+
+                // Jumpscare Trigger
+                if (dist < 1.0) { // Very close
+                    triggerJumpScare(enemy);
+                }
+            } else {
+                // Wandering (Jittery Patrol)
+                // Random direction change
+                if (!enemy.userData.patrolDir || Math.random() < 0.02) {
+                    enemy.userData.patrolDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+                }
+
+                enemy.position.x += enemy.userData.patrolDir.x * 2.0 * delta;
+                enemy.position.z += enemy.userData.patrolDir.z * 2.0 * delta;
+            }
+        });
 
         // --- Keys Generation ---
         const keyGeo = new THREE.TorusGeometry(0.5, 0.1, 8, 16);
@@ -310,7 +373,7 @@ const BackroomsView = ({ onExit }) => {
                 }
             });
 
-            // Enemy Logic (Billboarding & Chase)
+            // Enemy Logic (Billboarding & UNPREDICTABLE CHASE)
             enemies.forEach(enemy => {
                 // Always face camera (Billboard)
                 enemy.lookAt(camera.position.x, enemy.position.y, camera.position.z);
@@ -319,7 +382,7 @@ const BackroomsView = ({ onExit }) => {
 
                 // Line of Sight
                 const dirToPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
-                const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 30);
+                const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 40);
                 const intersects = raycaster.intersectObjects(mazeGroup.children);
 
                 let canSee = false;
@@ -327,28 +390,48 @@ const BackroomsView = ({ onExit }) => {
                     canSee = true;
                 }
 
-                // Reduced aggression radius to 15
-                if (canSee && dist < 15) {
-                    if (enemy.userData.state !== 'CHASE') console.log("Enemy spotted player!", enemy.userData.name);
+                // Update State
+                if (canSee && dist < 25) {
                     enemy.userData.state = 'CHASE';
                 } else {
                     enemy.userData.state = 'PATROL';
                 }
 
-                // Movement
+                // "Glitch" & Movement Logic
                 if (enemy.userData.state === 'CHASE') {
-                    const speed = 4.0 * delta; // Slightly slower
+                    // Base Speed
+                    let speed = 5.0 * delta;
+
+                    // 1. Random Glitch / Burst
+                    // 5% chance per frame to "teleport" or "sprint"
+                    if (Math.random() < 0.05) {
+                        // Micro-teleport forward (Jitter)
+                        enemy.position.x += dirToPlayer.x * 1.5;
+                        enemy.position.z += dirToPlayer.z * 1.5;
+                    }
+
+                    // 2. Stop and Stare (Unpredictable)
+                    // 1% chance to just freeze for a moment
+                    if (Math.random() < 0.01) {
+                        speed = 0;
+                    }
+
                     enemy.position.x += dirToPlayer.x * speed;
                     enemy.position.z += dirToPlayer.z * speed;
 
                     // Jumpscare Trigger
-                    if (dist < 1.0) { // Must be very close
+                    if (dist < 1.0) { // Very close
                         triggerJumpScare(enemy);
                     }
                 } else {
-                    // Wandering
-                    enemy.position.x += Math.sin(time * 0.5 + enemy.uuid) * delta;
-                    enemy.position.z += Math.cos(time * 0.5 + enemy.uuid) * delta;
+                    // Wandering (Jittery Patrol)
+                    // Random direction change
+                    if (!enemy.userData.patrolDir || Math.random() < 0.02) {
+                        enemy.userData.patrolDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+                    }
+
+                    enemy.position.x += enemy.userData.patrolDir.x * 2.0 * delta;
+                    enemy.position.z += enemy.userData.patrolDir.z * 2.0 * delta;
                 }
             });
 
