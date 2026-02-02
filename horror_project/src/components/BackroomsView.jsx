@@ -143,8 +143,12 @@ const BackroomsView = ({ onExit }) => {
         });
         scene.add(mazeGroup);
 
-        // Player Light (Flashlight - dimmer now)
-        const flashlight = new THREE.SpotLight(0xffffff, 1.5, 30, Math.PI / 6, 0.5, 1);
+        // Ambient light (low intensity for horror vibe, but visible)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        // Player Light (Flashlight - BOOSTED)
+        const flashlight = new THREE.SpotLight(0xffffff, 4.0, 100, Math.PI / 5, 0.3, 1);
         flashlight.position.set(0, 0, 0);
         flashlight.target.position.set(0, 0, -1);
         camera.add(flashlight);
