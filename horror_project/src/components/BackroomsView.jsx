@@ -295,6 +295,7 @@ const BackroomsView = ({ onExit }) => {
         const dirtMat = new THREE.MeshStandardMaterial({ map: dirtTex, color: 0x333333, roughness: 1.0 });
         const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x221100 });
         const stoneFloorMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 }); // Added missing material
 
         // GROUPS
         partyGroupRef.current = new THREE.Group();
