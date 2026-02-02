@@ -3,41 +3,36 @@ import * as THREE from 'three';
 import { Skull, Eye, Volume2, VolumeX, AlertCircle, ArrowLeft, Move, Info, Key } from 'lucide-react';
 
 const NARRATIVE_SCRIPT = [
-    { time: 2, text: "It's dark. Too dark." },
-    { time: 10, text: "I need to find the keys. They said three would open the way." },
-    { time: 25, text: "I hear... slurping sounds?" },
-    { time: 45, text: "The bananas... they aren't right here." },
-    { time: 60, text: "DONT LET THEM TOUCH YOU." },
-    { time: 90, text: "The peeling... it never stops." }
+    { time: 2, text: "Protocol: Birthday initiated." },
+    { time: 10, text: "Smile. They are watching." },
+    { time: 25, text: "Gifts contain sanity. Open them." },
+    { time: 45, text: "Do not frown. Do not run." },
+    { time: 60, text: "The Cornfield is waiting for the rude ones." }
 ];
 
 const BackroomsView = ({ onExit }) => {
     const containerRef = useRef();
     const [sanity, setSanity] = useState(100);
     const [audioEnabled, setAudioEnabled] = useState(false);
-    const [status, setStatus] = useState("Objective: Find 3 Gifts"); // Updated status text
+    const [status, setStatus] = useState("Objective: Find 3 Gifts");
     const [keysCollected, setKeysCollected] = useState(0);
     const [currentThought, setCurrentThought] = useState(null);
-    const [entityInfo, setEntityInfo] = useState(null);
-    const [isManifesting, setIsManifesting] = useState(false);
     const [gameOver, setGameOver] = useState(false);
-    const [socialBattery, setSocialBattery] = useState(100); // New state
+    const [socialBattery, setSocialBattery] = useState(100);
 
-    // Refs for mutable state in animation loop
     const audioRef = useRef(null);
     const sanityRef = useRef(100);
     const startTimeRef = useRef(performance.now());
-    const keysRef = useRef([]); // Array of key meshes
+    const keysRef = useRef([]);
     const collectedKeysRef = useRef(0);
     const jumpScareRef = useRef(false);
+    const currentLevelRef = useRef('PARTY'); // 'PARTY' or 'CORNFIELD'
 
-    // Movement & Smile State
     const moveState = useRef({
         forward: false, backward: false, left: false, right: false,
         smile: false
     });
 
-    // Mutable Maze Grid
     const mazeGridRef = useRef([
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
@@ -58,7 +53,6 @@ const BackroomsView = ({ onExit }) => {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // --- Input Handling ---
         const handleKeyDown = (e) => {
             switch (e.code) {
                 case 'KeyW': moveState.current.forward = true; break;
@@ -84,46 +78,47 @@ const BackroomsView = ({ onExit }) => {
         const baseUrl = import.meta.env.BASE_URL;
         const textureLoader = new THREE.TextureLoader();
 
-        // Load Textures
-        const wallTexture = textureLoader.load(`${baseUrl}images/wallpaper.png`);
-        const carpetTexture = textureLoader.load(`${baseUrl}images/carpet.png`);
-        const bananaTexture = textureLoader.load(
-            `${baseUrl}images/nano_banana.png`,
-            () => console.log("Banana Texture Loaded"),
-            undefined,
-            (err) => console.error("Banana Texture Failed:", err)
-        );
+        // --- ASSETS ---
+        // Party
+        const partyWallTex = textureLoader.load(`${baseUrl}images/party_wallpaper.png`);
+        const partyCarpetTex = textureLoader.load(`${baseUrl}images/carpet.png`);
+        const hostTex = textureLoader.load(`${baseUrl}images/host.png`);
+        // Cornfield
+        const cornWallTex = textureLoader.load(`${baseUrl}images/corn_wall.png`);
+        const dirtTex = textureLoader.load(`${baseUrl}images/dirt_ground.png`);
+        const scarecrowTex = textureLoader.load(`${baseUrl}images/scarecrow.png`);
 
-        // Fix texture wrapping
-        wallTexture.wrapS = THREE.RepeatWrapping;
-        wallTexture.wrapT = THREE.RepeatWrapping;
-        wallTexture.repeat.set(1, 1);
+        // Texture Settings
+        [partyWallTex, cornWallTex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 1); });
+        [partyCarpetTex, dirtTex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 4); });
 
-        carpetTexture.wrapS = THREE.RepeatWrapping;
-        carpetTexture.wrapT = THREE.RepeatWrapping;
-        carpetTexture.repeat.set(4, 4);
+        hostTex.magFilter = THREE.NearestFilter;
+        scarecrowTex.magFilter = THREE.NearestFilter;
 
-        // Materials
-        const wallMaterial = new THREE.MeshStandardMaterial({
-            map: wallTexture,
-            color: 0xffffff, // Pure white to show the yellow wallpaper
-            roughness: 0.5,
-            metalness: 0.0
-        });
-        const floorMaterial = new THREE.MeshStandardMaterial({
-            map: carpetTexture,
-            color: 0x554433, // Brownish carpet
-            roughness: 1.0
-        });
+        // Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x332200);
+        scene.fog = new THREE.FogExp2(0x443300, 0.03);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.domElement.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; filter: contrast(1.2) sepia(0.4) saturate(1.5);';
+        containerRef.current.appendChild(renderer.domElement);
+
+        // Materials (Refs for swapping)
+        const wallMaterial = new THREE.MeshStandardMaterial({ map: partyWallTex, color: 0xffffff, roughness: 0.5 });
+        const floorMaterial = new THREE.MeshStandardMaterial({ map: partyCarpetTex, color: 0x554433, roughness: 1.0 });
         const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0x221100 });
 
-        // Build Maze
+        // Maze Group
         const mazeGroup = new THREE.Group();
-        const wallGeometry = new THREE.BoxGeometry(cellSize, 9, cellSize);
+        const wallGeometry = new THREE.BoxGeometry(cellSize, 12, cellSize);
         const floorGeometry = new THREE.PlaneGeometry(cellSize, cellSize);
 
         const grid = mazeGridRef.current;
         const validSpawnPoints = [];
+        const ceilingMeshes = [];
 
         grid.forEach((row, r) => {
             const rowMeshes = [];
@@ -142,10 +137,11 @@ const BackroomsView = ({ onExit }) => {
                 ceiling.rotation.x = Math.PI / 2;
                 ceiling.position.set(x, 4, z);
                 mazeGroup.add(ceiling);
+                ceilingMeshes.push(ceiling);
 
                 // Walls
                 const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-                const targetY = cell === 1 ? 0 : -10;
+                const targetY = cell === 1 ? 0 : -20;
                 wall.position.set(x, targetY, z);
                 wall.userData = { targetY, isBorder: (r === 0 || r === grid.length - 1 || c === 0 || c === row.length - 1) };
                 mazeGroup.add(wall);
@@ -153,11 +149,11 @@ const BackroomsView = ({ onExit }) => {
 
                 if (cell === 0) validSpawnPoints.push({ x, z });
 
-                // Add Lanterns (Now "Party Lights" - Red/Blue/Green or just Yellow)
+                // Lanterns
                 if (cell === 1 && Math.random() > 0.85) {
                     const lantern = new THREE.PointLight(0xffaa00, 1, 12);
                     lantern.position.set(x, 1, z);
-                    lantern.userData = { flickerSpeed: Math.random() * 0.1 + 0.05, baseInt: 1 };
+                    lantern.userData = { type: 'lantern', flickerSpeed: Math.random() * 0.1 + 0.05, baseInt: 1 };
                     mazeGroup.add(lantern);
                 }
             });
@@ -165,11 +161,10 @@ const BackroomsView = ({ onExit }) => {
         });
         scene.add(mazeGroup);
 
-        // Ambient light (Dim, creepy yellow party vibe)
+        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffaa00, 0.4);
         scene.add(ambientLight);
 
-        // Player Light (Flashlight - Slightly Warm)
         const flashlight = new THREE.SpotLight(0xffddaa, 3.0, 80, Math.PI / 5, 0.4, 1);
         flashlight.position.set(0, 0, 0);
         flashlight.target.position.set(0, 0, -1);
@@ -177,325 +172,219 @@ const BackroomsView = ({ onExit }) => {
         camera.add(flashlight.target);
         scene.add(camera);
 
-        // ... (Inside animate loop)
-        enemies.forEach(enemy => {
-            // Always face camera (Billboard)
-            enemy.lookAt(camera.position.x, enemy.position.y, camera.position.z);
+        // Enemies
+        const enemies = [];
+        const spawnEnemy = (tex, name) => {
+            if (validSpawnPoints.length === 0) return;
+            // Find last few points
+            const idx = Math.floor(validSpawnPoints.length * 0.8 + Math.random() * (validSpawnPoints.length * 0.2));
+            const pos = validSpawnPoints[idx];
 
-            const dist = enemy.position.distanceTo(camera.position);
-
-            // Line of Sight
-            const dirToPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
-            const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 40);
-            const intersects = raycaster.intersectObjects(mazeGroup.children);
-
-            let canSee = false;
-            if (intersects.length === 0 || intersects[0].distance > dist) {
-                canSee = true;
-            }
-
-            // Update State
-            if (canSee && dist < 25) {
-                enemy.userData.state = 'CHASE';
-            } else {
-                enemy.userData.state = 'PATROL';
-            }
-
-            // "Glitch" & Movement Logic
-            if (enemy.userData.state === 'CHASE') {
-                // Base Speed
-                let speed = 5.0 * delta;
-
-                // 1. Random Glitch / Burst
-                // 2% chance per frame to "teleport" or "sprint"
-                if (Math.random() < 0.05) {
-                    // Micro-teleport forward (Jitter)
-                    enemy.position.x += dirToPlayer.x * 2.5;
-                    enemy.position.z += dirToPlayer.z * 2.5;
-                    console.log("Enemy Glitch-Jump!");
-                }
-
-                // 2. Stop and Stare (Unpredictable)
-                // 1% chance to just freeze for a moment
-                if (Math.random() < 0.01) {
-                    speed = 0;
-                }
-
-                enemy.position.x += dirToPlayer.x * speed;
-                enemy.position.z += dirToPlayer.z * speed;
-
-                // Jumpscare Trigger
-                if (dist < 1.0) { // Very close
-                    triggerJumpScare(enemy);
-                }
-            } else {
-                // Wandering (Jittery Patrol)
-                // Random direction change
-                if (!enemy.userData.patrolDir || Math.random() < 0.02) {
-                    enemy.userData.patrolDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-                }
-
-                enemy.position.x += enemy.userData.patrolDir.x * 2.0 * delta;
-                enemy.position.z += enemy.userData.patrolDir.z * 2.0 * delta;
-            }
-        });
-
-        // --- Keys Generation ---
-        const keyGeo = new THREE.TorusGeometry(0.5, 0.1, 8, 16);
-        const keyMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
-        for (let i = 0; i < 3; i++) {
-            if (validSpawnPoints.length > 0) {
-                const idx = Math.floor(Math.random() * validSpawnPoints.length);
-                const pos = validSpawnPoints.splice(idx, 1)[0];
-                const key = new THREE.Mesh(keyGeo, keyMat);
-                key.position.set(pos.x, -2, pos.z);
-                key.userData = { type: 'key', id: i };
-                scene.add(key);
-                keysRef.current.push(key);
-
-                // Key Light
-                const kLight = new THREE.PointLight(0xffd700, 1, 5);
-                kLight.position.set(pos.x, -2, pos.z);
-                scene.add(kLight);
-            }
-        }
-
-        // Create Enemy (Host Entity)
-        hostTexture.magFilter = THREE.NearestFilter; // Pixel art look
-        const createEnemy = (x, z) => {
-            const spriteMat = new THREE.SpriteMaterial({
-                map: hostTexture,
-                color: 0xffffff,
-                transparent: true,
-                depthWrite: false // Fix billboarding transparency issues
-            });
+            const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
             const sprite = new THREE.Sprite(spriteMat);
-            sprite.position.set(x, 0, z); // Center on floor
-            sprite.scale.set(1.5, 3.5, 1); // Tall, lanky
-            sprite.userData = {
-                name: 'Host',
-                state: 'PATROL',
-                glitchTimer: 0
-            };
+            sprite.position.set(pos.x, 0, pos.z);
+            sprite.scale.set(1.5, 3.5, 1);
+            sprite.userData = { name, state: 'PATROL', glitchTimer: 0 };
             mazeGroup.add(sprite);
-            return sprite;
-        }
-
-        // Spawn Enemies slightly away from start (0,0 is start mostly?)
-        // Camera starts at (cellSize, 0, cellSize) which is index 0 roughly.
-        // We spawn enemies at the END of the validSpawnPoints array to ensure max distance.
-        console.log("Spawning Enemies. Valid Points:", validSpawnPoints.length);
-        if (validSpawnPoints.length > 5) {
-            // Spawn at last index and middle index
-            const lastIdx = validSpawnPoints.length - 1;
-            const midIdx = Math.floor(validSpawnPoints.length / 2);
-
-            const e1 = createEnemy(validSpawnPoints[lastIdx].x, validSpawnPoints[lastIdx].z);
-            const e2 = createEnemy(validSpawnPoints[midIdx].x, validSpawnPoints[midIdx].z);
-            enemies.push(e1, e2);
-            console.log("Enemies Spawned at", validSpawnPoints[lastIdx], validSpawnPoints[midIdx]);
-        } else {
-            console.warn("Not enough spawn points for enemies!");
-        }
+            enemies.push(sprite);
+        };
+        spawnEnemy(hostTex, "Host");
+        spawnEnemy(hostTex, "Host");
 
         camera.position.set(cellSize, 0, cellSize);
 
-        // Controls
-        let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false, isRunning = false;
-        const onKeyDown = (e) => {
-            if (e.key === 'w' || e.key === 'ArrowUp') moveForward = true;
-            if (e.key === 's' || e.key === 'ArrowDown') moveBackward = true;
-            if (e.key === 'a' || e.key === 'ArrowLeft') turnLeft = true;
-            if (e.key === 'd' || e.key === 'ArrowRight') turnRight = true;
-            if (e.code === 'Space') isRunning = true;
-        };
-        const onKeyUp = (e) => {
-            if (e.key === 'w' || e.key === 'ArrowUp') moveForward = false;
-            if (e.key === 's' || e.key === 'ArrowDown') moveBackward = false;
-            if (e.key === 'a' || e.key === 'ArrowLeft') turnLeft = false;
-            if (e.key === 'd' || e.key === 'ArrowRight') turnRight = false;
-            if (e.code === 'Space') isRunning = false;
-        };
-        window.addEventListener('keydown', onKeyDown);
-        window.addEventListener('keyup', onKeyUp);
+        // Keys / Gifts
+        const keyGeo = new THREE.TorusGeometry(0.5, 0.1, 8, 16);
+        const keyMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+        for (let i = 0; i < 3; i++) {
+            const idx = Math.floor(Math.random() * validSpawnPoints.length);
+            const pos = validSpawnPoints[idx];
+            const key = new THREE.Mesh(keyGeo, keyMat);
+            key.position.set(pos.x, -2, pos.z);
+            key.userData = { type: 'key' };
+            scene.add(key);
+            keysRef.current.push(key);
+            const kLight = new THREE.PointLight(0xffd700, 1, 5);
+            kLight.position.set(pos.x, -2, pos.z);
+            scene.add(kLight);
+        }
 
-        // Animation Loop
+        // --- LEVEL SWITCH LOGIC ---
+        const switchLevel = (newLevel) => {
+            currentLevelRef.current = newLevel;
+
+            if (newLevel === 'CORNFIELD') {
+                setStatus("EXILED TO THE CORNFIELD.");
+                setSanity(100); // Reset sanity for punishment
+
+                // Swap Textures
+                wallMaterial.map = cornWallTex;
+                floorMaterial.map = dirtTex;
+                floorMaterial.color.setHex(0x333333);
+                wallMaterial.color.setHex(0xaaaaaa);
+
+                // Open Sky
+                ceilingMeshes.forEach(m => m.visible = false);
+
+                // Atmosphere (Beige)
+                scene.background = new THREE.Color(0x555544);
+                scene.fog = new THREE.FogExp2(0x555544, 0.04);
+                ambientLight.color.setHex(0xaaaaaa);
+                ambientLight.intensity = 0.8;
+
+                // Swap Enemies (Host -> Scarecrow)
+                enemies.forEach(e => {
+                    e.material.map = scarecrowTex;
+                    e.userData.name = "Scarecrow";
+                    e.scale.set(2, 4, 1);
+                });
+
+                // Hide Lanterns
+                mazeGroup.children.forEach(c => {
+                    if (c.userData.type === 'lantern') c.visible = false;
+                });
+
+                // Teleport Player Randomly
+                const randPt = validSpawnPoints[Math.floor(Math.random() * validSpawnPoints.length)];
+                camera.position.set(randPt.x, 0, randPt.z);
+
+            } else {
+                // Reset to Party (Not used yet, maybe finding cake triggers this)
+            }
+        };
+
+        // LOOP
         let lastTime = performance.now();
         const animate = () => {
-            if (jumpScareRef.current) return; // Stop rendering loop on jumpscare
+            if (jumpScareRef.current) return;
 
             requestAnimationFrame(animate);
             const time = performance.now();
             const delta = (time - lastTime) / 1000;
             lastTime = time;
 
-            // Player Movement
-            if (turnLeft) camera.rotation.y += 2 * delta;
-            if (turnRight) camera.rotation.y -= 2 * delta;
+            // Movement
+            if (moveState.current.left) camera.rotation.y += 2 * delta;
+            if (moveState.current.right) camera.rotation.y -= 2 * delta;
+
+            const moveForward = moveState.current.forward;
+            const moveBackward = moveState.current.backward;
 
             if (moveForward || moveBackward) {
                 const direction = new THREE.Vector3();
                 camera.getWorldDirection(direction);
-                // Lock Y movement
-                direction.y = 0;
-                direction.normalize();
-
+                direction.y = 0; direction.normalize();
                 if (moveBackward) direction.negate();
+                const nextX = camera.position.x + direction.x * 5.0 * delta;
+                const nextZ = camera.position.z + direction.z * 5.0 * delta;
 
-                const speed = isRunning ? 7.0 : 3.5;
-                const nextX = camera.position.x + direction.x * speed * delta;
-                const nextZ = camera.position.z + direction.z * speed * delta;
-
-                // Collision with Sliding
+                // Collision
                 const gridX = Math.round(nextX / cellSize);
                 const gridZ = Math.round(nextZ / cellSize);
-
-                // 1. Try moving Both axes
                 if (grid[gridZ] && grid[gridZ][gridX] === 0) {
-                    camera.position.x = nextX;
-                    camera.position.z = nextZ;
-                } else {
-                    // 2. Blocked? Try sliding along X
-                    const currGridZ = Math.round(camera.position.z / cellSize);
-                    if (grid[currGridZ] && grid[currGridZ][gridX] === 0) {
-                        camera.position.x = nextX;
-                        // Z stays same
-                    } else {
-                        // 3. Blocked? Try sliding along Z
-                        const currGridX = Math.round(camera.position.x / cellSize);
-                        if (grid[gridZ] && grid[gridZ][currGridX] === 0) {
-                            camera.position.z = nextZ;
-                            // X stays same
-                        }
-                    }
+                    camera.position.x = nextX; camera.position.z = nextZ;
                 }
+                camera.position.y = Math.sin(time * 6) * 0.15;
             }
 
-            // Bobbing
-            if (moveForward || moveBackward) {
-                camera.position.y = Math.sin(time * 0.01) * 0.15;
+            // Social Battery & Switch
+            if (moveState.current.smile) {
+                if (socialBattery > 0) setSocialBattery(prev => Math.max(0, prev - (15 * delta))); // Fast drain
+                else {
+                    moveState.current.smile = false;
+                    if (currentLevelRef.current === 'PARTY') switchLevel('CORNFIELD');
+                }
+            } else {
+                setSocialBattery(prev => Math.min(100, prev + (2 * delta)));
             }
 
-            // Keys Logic
-            keysRef.current.forEach((key, index) => {
+            // Keys
+            keysRef.current.forEach(key => {
                 if (key.visible) {
                     key.rotation.y += delta;
                     if (camera.position.distanceTo(key.position) < 2) {
                         key.visible = false;
-                        collectedKeysRef.current += 1;
                         setKeysCollected(c => c + 1);
-                        console.log("Key Collected! Total:", collectedKeysRef.current);
-
-                        if (collectedKeysRef.current >= 3) {
-                            setStatus("KEYS COLLECTED. EXIT PORTAL OPENING...");
-                            // Logic to spawn exit would go here
-                        }
+                        // Heal Battery
+                        setSocialBattery(100);
+                        setStatus("GIFT OPENED. BATTERY RESTORED.");
                     }
                 }
             });
 
-            // Enemy Logic (Billboarding & UNPREDICTABLE CHASE)
+            // Enemy Logic (Party vs Cornfield)
             enemies.forEach(enemy => {
-                // Always face camera (Billboard)
                 enemy.lookAt(camera.position.x, enemy.position.y, camera.position.z);
-
                 const dist = enemy.position.distanceTo(camera.position);
-
-                // Line of Sight
                 const dirToPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
-                const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 40);
-                const intersects = raycaster.intersectObjects(mazeGroup.children);
 
-                let canSee = false;
-                if (intersects.length === 0 || intersects[0].distance > dist) {
-                    canSee = true;
-                }
+                const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 50);
+                const intersects = raycaster.intersectObjects(mazeGroup.children.filter(c => c.isMesh && c.userData.isBorder !== undefined));
+                const canSee = (intersects.length === 0 || intersects[0].distance > dist);
 
-                // Update State
-                if (canSee && dist < 25) {
-                    enemy.userData.state = 'CHASE';
-                } else {
-                    enemy.userData.state = 'PATROL';
-                }
-
-                // "Glitch" & Movement Logic
-                if (enemy.userData.state === 'CHASE') {
-                    // Base Speed
-                    let speed = 5.0 * delta;
-
-                    // 1. Random Glitch / Burst
-                    // 5% chance per frame to "teleport" or "sprint"
-                    if (Math.random() < 0.05) {
-                        // Micro-teleport forward (Jitter)
-                        enemy.position.x += dirToPlayer.x * 1.5;
-                        enemy.position.z += dirToPlayer.z * 1.5;
+                if (currentLevelRef.current === 'PARTY') {
+                    // PARTY LOGIC
+                    if (canSee && dist < 20) {
+                        if (moveState.current.smile && socialBattery > 0) enemy.userData.state = 'STARE';
+                        else enemy.userData.state = 'CHASE';
+                    } else {
+                        enemy.userData.state = 'PATROL';
                     }
 
-                    // 2. Stop and Stare (Unpredictable)
-                    // 1% chance to just freeze for a moment
-                    if (Math.random() < 0.01) {
-                        speed = 0;
-                    }
-
-                    enemy.position.x += dirToPlayer.x * speed;
-                    enemy.position.z += dirToPlayer.z * speed;
-
-                    // Jumpscare Trigger
-                    if (dist < 1.0) { // Very close
-                        triggerJumpScare(enemy);
-                    }
-                } else {
-                    // Wandering (Jittery Patrol)
-                    // Random direction change
-                    if (!enemy.userData.patrolDir || Math.random() < 0.02) {
-                        enemy.userData.patrolDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-                    }
-
-                    enemy.position.x += enemy.userData.patrolDir.x * 2.0 * delta;
-                    enemy.position.z += enemy.userData.patrolDir.z * 2.0 * delta;
-                }
-            });
-
-            // Lantern Flicker
-            scene.children.forEach(child => {
-                if (child.isGroup) {
-                    child.children.forEach(c => {
-                        if (c.isPointLight && c.userData.flickerSpeed) {
-                            c.intensity = c.userData.baseInt + Math.sin(time * c.userData.flickerSpeed) * 0.5;
+                    if (enemy.userData.state === 'CHASE') {
+                        enemy.position.x += dirToPlayer.x * 6.0 * delta;
+                        enemy.position.z += dirToPlayer.z * 6.0 * delta;
+                        if (dist < 1.0) {
+                            triggerJumpScare(enemy);
+                            setTimeout(() => switchLevel('CORNFIELD'), 1000); // Exile logic
                         }
-                    })
+                    } else if (enemy.userData.state === 'PATROL') {
+                        enemy.position.x += (Math.random() - 0.5) * 0.2;
+                        enemy.position.z += (Math.random() - 0.5) * 0.2;
+                    }
+                } else {
+                    // CORNFIELD LOGIC (WEEPING ANGEL)
+                    const playerDir = new THREE.Vector3();
+                    camera.getWorldDirection(playerDir);
+                    const angle = playerDir.dot(dirToPlayer); // -1 behind, 1 facing enemy (if dirToPlayer is Enemy->Cam)
+                    // dirToPlayer = Camera - Enemy. Pointing AT camera.
+                    // PlayerDir. Pointing AT enemy?
+                    // If PlayerDir dot (Enemy->Camera)...
+                    // PlayDir aligns with Enemy->Camera means Player is RUNNING AWAY.
+                    // PlayDir opposes Enemy->Camera means Player is LOOKING AT.
+
+                    // Correction: 
+                    // Vector Enemy->Camera (dirToPlayer).
+                    // Vector CameraForward (playerDir).
+                    // If Camera looks at Enemy, playerDir is approx -dirToPlayer.
+                    // Dot product < -0.5 means LOOKING AT.
+
+                    const isLookingAt = (canSee && angle < -0.4);
+
+                    if (isLookingAt) {
+                        enemy.userData.state = 'FROZEN';
+                    } else {
+                        enemy.userData.state = 'RUSH';
+                        enemy.position.x += dirToPlayer.x * 12.0 * delta;
+                        enemy.position.z += dirToPlayer.z * 12.0 * delta;
+
+                        if (dist < 1.0) {
+                            triggerJumpScare(enemy); // Caught in cornfield
+                            // Do nothing else, just stuck in loop
+                        }
+                    }
                 }
             });
-
-            // Narrative
-            const elapsedTime = (time - startTimeRef.current) / 1000;
-            const currentScriptLine = NARRATIVE_SCRIPT.find(l => Math.abs(l.time - elapsedTime) < 0.5);
-            if (currentScriptLine) {
-                setCurrentThought(currentScriptLine.text);
-                setTimeout(() => setCurrentThought(null), 4000);
-            }
-
-            // Sanity Drain
-            sanityRef.current -= 0.02 * delta; // Faster drain
-            setSanity(Math.max(0, sanityRef.current));
-
-            if (sanityRef.current <= 0 && !gameOver) {
-                triggerJumpScare();
-            }
 
             renderer.render(scene, camera);
         };
-
         const animationId = requestAnimationFrame(animate);
 
         const triggerJumpScare = (enemy) => {
             if (jumpScareRef.current) return;
-
-            // Non-fatal Jumpscare
             jumpScareRef.current = true;
-            console.log("JUMPSCARE! Teleporting enemy away...");
 
-            // 1. Audio Blast
+            // Audio
             if (audioRef.current) {
                 const now = audioRef.current.ctx.currentTime;
                 audioRef.current.osc.frequency.setValueAtTime(100, now);
@@ -504,36 +393,28 @@ const BackroomsView = ({ onExit }) => {
                 audioRef.current.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
             }
 
-            // 2. Flash Overlay (We use setGameOver temporarily for the visual or a new state? 
-            // Let's use a separate state to avoid full game block)
-            setStatus("RUN! IT FOUND YOU!");
-            setSanity(s => Math.max(0, s - 25));
+            // Visual
+            setStatus(currentLevelRef.current === 'PARTY' ? "RUDE! EXILE IMMINENT!" : "CONSUMED BY THE CORN.");
 
-            // 3. Teleport Enemy Away
-            // Find a spawn point far away
-            if (enemy && validSpawnPoints.length > 0) {
-                // Just pick a random valid point
+            // Teleport Enemy Away (Reset)
+            if (enemy) {
                 const randPt = validSpawnPoints[Math.floor(Math.random() * validSpawnPoints.length)];
-                enemy.position.set(randPt.x, -1, randPt.z);
-                enemy.userData.state = 'PATROL'; // Reset state
+                enemy.position.set(randPt.x, 0, randPt.z);
             }
 
-            // Reset flag after a delay so we can get scared again
             setTimeout(() => {
                 jumpScareRef.current = false;
-                setStatus("Objective: Find Keys");
             }, 2000);
-        }
+        };
 
         return () => {
             cancelAnimationFrame(animationId);
-            window.removeEventListener('keydown', onKeyDown);
-            window.removeEventListener('keyup', onKeyUp);
-            if (containerRef.current && renderer.domElement) {
-                containerRef.current.removeChild(renderer.domElement);
-            }
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            if (containerRef.current && renderer.domElement) containerRef.current.removeChild(renderer.domElement);
             renderer.dispose();
-        }
+        };
+
     }, [audioEnabled]);
 
     return (
@@ -548,21 +429,14 @@ const BackroomsView = ({ onExit }) => {
                         <p className="text-xl text-yellow-200 mt-2 animate-pulse">{status}</p>
                     </div>
                     <div className="text-right">
-                        {/* Social Battery */}
                         <div className="text-2xl text-yellow-500 font-bold mb-2">SOCIAL BATTERY</div>
                         <div className="w-64 h-6 bg-gray-900 border-2 border-yellow-700">
-                            <div
-                                className="h-full bg-yellow-500 transition-all duration-200"
-                                style={{ width: `${socialBattery}%` }}
-                            />
+                            <div className="h-full bg-yellow-500 transition-all duration-200" style={{ width: `${socialBattery}%` }} />
                         </div>
-
-                        {/* Smile Indicator */}
                         <div className="mt-4 flex items-center justify-end gap-2">
                             <span className="text-sm text-yellow-300">HOLD [SPACE] TO WIDEN SMILE</span>
                             <div className={`w-8 h-8 rounded-full border-2 ${moveState.current?.smile ? 'bg-green-500 border-green-300' : 'bg-transparent border-red-500'}`} />
                         </div>
-
                         <div className="mt-4 text-xl text-yellow-200">GIFTS OPENED: {keysCollected} / 3</div>
                     </div>
                 </div>
@@ -575,29 +449,16 @@ const BackroomsView = ({ onExit }) => {
                 </div>
             )}
 
-            {/* Scanlines */}
-            <div className="absolute inset-0 pointer-events-none opacity-20 bg-[url('https://media.giphy.com/media/oEI9uBYSzLpBK/giphy.gif')] background-size-cover mix-blend-overlay"></div>
+            {/* Scanlines / Noise */}
+            <div className="absolute inset-0 pointer-events-none opacity-10 bg-[url('https://media.giphy.com/media/oEI9uBYSzLpBK/giphy.gif')] mix-blend-overlay"></div>
+
             {/* Action Buttons */}
             <div className="absolute top-8 right-8 z-50 flex flex-col gap-4 pointer-events-auto">
-                <button
-                    onClick={onExit}
-                    className="flex items-center gap-2 bg-red-950/80 text-red-200 border border-red-800 px-4 py-2 uppercase text-xs font-bold"
-                >
-                    ABORT <ArrowLeft className="w-4 h-4" />
-                </button>
-                <button
-                    onClick={() => setAudioEnabled(!audioEnabled)}
-                    className="self-end bg-black/50 p-2 border border-gray-800 text-gray-400"
-                >
-                    {audioEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                </button>
+                <button onClick={onExit} className="flex items-center gap-2 bg-red-950/80 text-red-200 border border-red-800 px-4 py-2 uppercase text-xs font-bold">ABORT <ArrowLeft className="w-4 h-4" /></button>
             </div>
 
             {/* Center Reticle */}
             <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-white/50 rounded-full pointer-events-none mix-blend-exclusion" />
-
-            {/* CRT Effect */}
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjUiLz48L3N2Zz4=')] opacity-[0.05] pointer-events-none z-40"></div>
         </div>
     );
 };
