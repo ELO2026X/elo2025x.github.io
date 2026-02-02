@@ -33,7 +33,7 @@ const BackroomsView = ({ onExit }) => {
 
     const moveState = useRef({
         forward: false, backward: false, left: false, right: false,
-        smile: false
+        smile: false, run: false
     });
 
     const mazeGridRef = useRef([
@@ -63,6 +63,8 @@ const BackroomsView = ({ onExit }) => {
                 case 'KeyA': moveState.current.left = true; break;
                 case 'KeyD': moveState.current.right = true; break;
                 case 'Space': moveState.current.smile = true; break;
+                case 'ShiftLeft':
+                case 'ShiftRight': moveState.current.run = true; break;
             }
         };
         const handleKeyUp = (e) => {
@@ -72,6 +74,8 @@ const BackroomsView = ({ onExit }) => {
                 case 'KeyA': moveState.current.left = false; break;
                 case 'KeyD': moveState.current.right = false; break;
                 case 'Space': moveState.current.smile = false; break;
+                case 'ShiftLeft':
+                case 'ShiftRight': moveState.current.run = false; break;
             }
         };
 
@@ -267,8 +271,10 @@ const BackroomsView = ({ onExit }) => {
                 camera.getWorldDirection(direction);
                 direction.y = 0; direction.normalize();
                 if (moveBackward) direction.negate();
-                const nextX = camera.position.x + direction.x * 5.0 * delta;
-                const nextZ = camera.position.z + direction.z * 5.0 * delta;
+
+                const speed = moveState.current.run ? 12.0 : 5.0; // Sprint Multiplier
+                const nextX = camera.position.x + direction.x * speed * delta;
+                const nextZ = camera.position.z + direction.z * speed * delta;
 
                 // Improved Collision with Wall Slide
                 const gridX = Math.round(nextX / cellSize);
@@ -293,8 +299,9 @@ const BackroomsView = ({ onExit }) => {
                     }
                 }
 
-                // Reduced Head Bob (Less shaking)
-                camera.position.y = Math.sin(time * 10) * 0.05;
+                // Reduced Head Bob (Less shaking, fast bob when running)
+                const bobFreq = moveState.current.run ? 15 : 10;
+                camera.position.y = Math.sin(time * bobFreq) * 0.05;
             } else {
                 // Reset height when stopped
                 camera.position.y = THREE.MathUtils.lerp(camera.position.y, 0, delta * 5);
@@ -446,9 +453,12 @@ const BackroomsView = ({ onExit }) => {
                         <div className="w-64 h-6 bg-gray-900 border-2 border-yellow-700">
                             <div className="h-full bg-yellow-500 transition-all duration-200" style={{ width: `${socialBattery}%` }} />
                         </div>
-                        <div className="mt-4 flex items-center justify-end gap-2">
-                            <span className="text-sm text-yellow-300">HOLD [SPACE] TO WIDEN SMILE</span>
-                            <div className={`w-8 h-8 rounded-full border-2 ${moveState.current?.smile ? 'bg-green-500 border-green-300' : 'bg-transparent border-red-500'}`} />
+                        <div className="mt-4 flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-yellow-300">HOLD [SPACE] TO WIDEN SMILE</span>
+                                <div className={`w-8 h-8 rounded-full border-2 ${moveState.current?.smile ? 'bg-green-500 border-green-300' : 'bg-transparent border-red-500'}`} />
+                            </div>
+                            <div className="text-sm text-yellow-300">HOLD [SHIFT] TO RUN</div>
                         </div>
                         <div className="mt-4 text-xl text-yellow-200">GIFTS OPENED: {keysCollected} / 3</div>
                     </div>
