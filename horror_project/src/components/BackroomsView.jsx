@@ -123,7 +123,7 @@ const BackroomsView = ({ onExit }) => {
     const containerRef = useRef();
     const [sanity, setSanity] = useState(100);
     const [audioEnabled, setAudioEnabled] = useState(false);
-    const [status, setStatus] = useState("AWAITING INPUT...");
+    const [status, setStatus] = useState("EXPLORATION MODE");
     const [hint, setHint] = useState("");
     const [keysCollected, setKeysCollected] = useState(0);
     const [gameOver, setGameOver] = useState(false);
@@ -681,19 +681,22 @@ const BackroomsView = ({ onExit }) => {
                 // CHASE
                 if (dist < 40) {
                     chasing = true;
-                    const dir = new THREE.Vector3().subVectors(camera.position, e.position).normalize();
-                    dir.y = 0;
-
-                    const spd = e.userData.type === 'SCARECROW' ? 14 : (e.userData.type === 'MINOTAUR' ? 9 : 6);
-                    e.position.addScaledVector(dir, spd * delta);
+                    // Exploration Mode: Stop at 6 units to allow "Exhibition"
+                    if (dist > 6.0) {
+                        const dir = new THREE.Vector3().subVectors(camera.position, e.position).normalize();
+                        dir.y = 0;
+                        const spd = e.userData.type === 'SCARECROW' ? 14 : (e.userData.type === 'MINOTAUR' ? 9 : 6);
+                        e.position.addScaledVector(dir, spd * delta);
+                    }
 
                     if (e.userData.type !== 'HOST') e.lookAt(camera.position.x, e.position.y, camera.position.z);
 
-                    if (dist < 1.5) {
-                        jumpScareRef.current = true;
-                        setStatus("CAUGHT");
-                        setTimeout(() => window.location.reload(), 2000);
-                    }
+                    // NO KILL TRIGGER - EXPLORATION MODE
+                    // if (dist < 1.5) {
+                    //    jumpScareRef.current = true;
+                    //    setStatus("CAUGHT");
+                    //    setTimeout(() => window.location.reload(), 2000);
+                    // }
                 }
             });
 
