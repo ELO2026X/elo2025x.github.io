@@ -72,28 +72,28 @@ const BackroomsView = ({ onExit }) => {
 
         // Scene Setup
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505); // Pitch black
-        scene.fog = new THREE.FogExp2(0x000000, 0.05); // Dense darkness
+        scene.background = new THREE.Color(0x111111); // Dark Grey, not pitch black
+        scene.fog = new THREE.FogExp2(0x111111, 0.02); // Reduced Fog
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false }); // Disable AA for grit
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.domElement.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; filter: contrast(1.2) brightness(0.8);';
+        renderer.domElement.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; filter: contrast(1.1) brightness(1.2);';
         containerRef.current.appendChild(renderer.domElement);
 
         // Materials
         const wallMaterial = new THREE.MeshStandardMaterial({
             map: wallTexture,
-            color: 0x555555, // Darker
+            color: 0x888888, // Brighter walls
             roughness: 0.8,
             metalness: 0.1
         });
         const floorMaterial = new THREE.MeshStandardMaterial({
             map: carpetTexture,
-            color: 0x333333,
+            color: 0x666666, // Brighter floor
             roughness: 1.0
         });
-        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
 
         // Build Maze
         const mazeGroup = new THREE.Group();
@@ -143,12 +143,12 @@ const BackroomsView = ({ onExit }) => {
         });
         scene.add(mazeGroup);
 
-        // Ambient light (low intensity for horror vibe, but visible)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        // Ambient light (FLOODLIGHTS ON)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
         scene.add(ambientLight);
 
-        // Player Light (Flashlight - BOOSTED)
-        const flashlight = new THREE.SpotLight(0xffffff, 4.0, 100, Math.PI / 5, 0.3, 1);
+        // Player Light (Flashlight - SUPER BRIGHT)
+        const flashlight = new THREE.SpotLight(0xffffff, 8.0, 150, Math.PI / 4, 0.3, 1);
         flashlight.position.set(0, 0, 0);
         flashlight.target.position.set(0, 0, -1);
         camera.add(flashlight);
