@@ -27,6 +27,8 @@ const BackroomsView = ({ onExit }) => {
     const collectedKeysRef = useRef(0);
     const jumpScareRef = useRef(false);
     const currentLevelRef = useRef('PARTY'); // 'PARTY' or 'CORNFIELD'
+    const hasWonRef = useRef(false); // Victory State
+    const cakeRef = useRef(null);
 
     const moveState = useRef({
         forward: false, backward: false, left: false, right: false,
@@ -87,6 +89,8 @@ const BackroomsView = ({ onExit }) => {
         const cornWallTex = textureLoader.load(`${baseUrl}images/corn_wall.png`);
         const dirtTex = textureLoader.load(`${baseUrl}images/dirt_ground.png`);
         const scarecrowTex = textureLoader.load(`${baseUrl}images/scarecrow.png`);
+        // Cake
+        const cakeTex = textureLoader.load(`${baseUrl}images/cake.png`);
 
         // Texture Settings
         [partyWallTex, cornWallTex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 1); });
@@ -94,6 +98,7 @@ const BackroomsView = ({ onExit }) => {
 
         hostTex.magFilter = THREE.NearestFilter;
         scarecrowTex.magFilter = THREE.NearestFilter;
+        cakeTex.magFilter = THREE.NearestFilter;
 
         // Scene
         const scene = new THREE.Scene();
@@ -249,14 +254,14 @@ const BackroomsView = ({ onExit }) => {
                 camera.position.set(randPt.x, 0, randPt.z);
 
             } else {
-                // Reset to Party (Not used yet, maybe finding cake triggers this)
+                // Reset to Party (Not used yet)
             }
         };
 
         // LOOP
         let lastTime = performance.now();
         const animate = () => {
-            if (jumpScareRef.current) return;
+            if (jumpScareRef.current || hasWonRef.current) return;
 
             requestAnimationFrame(animate);
             const time = performance.now();
@@ -304,13 +309,39 @@ const BackroomsView = ({ onExit }) => {
                     key.rotation.y += delta;
                     if (camera.position.distanceTo(key.position) < 2) {
                         key.visible = false;
+                        collectedKeysRef.current += 1;
                         setKeysCollected(c => c + 1);
                         // Heal Battery
                         setSocialBattery(100);
                         setStatus("GIFT OPENED. BATTERY RESTORED.");
+
+                        // SPAWN CAKE
+                        if (collectedKeysRef.current === 3) {
+                            // Spawn Cake at (cellSize, 0, cellSize) - reliable close spot
+                            const cakeMat = new THREE.SpriteMaterial({ map: cakeTex, transparent: true });
+                            const cake = new THREE.Sprite(cakeMat);
+                            cake.scale.set(3, 3, 1);
+                            cake.position.set(cellSize, 0, cellSize); // Spawn at start
+                            mazeGroup.add(cake);
+                            cakeRef.current = cake;
+                            // Light for Cake
+                            const cLight = new THREE.PointLight(0xff00ff, 2, 8);
+                            cLight.position.set(cellSize, 0, cellSize);
+                            mazeGroup.add(cLight);
+
+                            setStatus("EXIT OPEN! FIND THE CAKE WHERE YOU STARTED!");
+                        }
                     }
                 }
             });
+
+            // WIN CONDITION CHECK
+            if (cakeRef.current) {
+                if (camera.position.distanceTo(cakeRef.current.position) < 2.0) {
+                    hasWonRef.current = true;
+                    setGameOver(true);
+                }
+            }
 
             // Enemy Logic (Party vs Cornfield)
             enemies.forEach(enemy => {
@@ -347,17 +378,6 @@ const BackroomsView = ({ onExit }) => {
                     const playerDir = new THREE.Vector3();
                     camera.getWorldDirection(playerDir);
                     const angle = playerDir.dot(dirToPlayer); // -1 behind, 1 facing enemy (if dirToPlayer is Enemy->Cam)
-                    // dirToPlayer = Camera - Enemy. Pointing AT camera.
-                    // PlayerDir. Pointing AT enemy?
-                    // If PlayerDir dot (Enemy->Camera)...
-                    // PlayDir aligns with Enemy->Camera means Player is RUNNING AWAY.
-                    // PlayDir opposes Enemy->Camera means Player is LOOKING AT.
-
-                    // Correction: 
-                    // Vector Enemy->Camera (dirToPlayer).
-                    // Vector CameraForward (playerDir).
-                    // If Camera looks at Enemy, playerDir is approx -dirToPlayer.
-                    // Dot product < -0.5 means LOOKING AT.
 
                     const isLookingAt = (canSee && angle < -0.4);
 
@@ -442,10 +462,21 @@ const BackroomsView = ({ onExit }) => {
                 </div>
             </div>
 
-            {/* Jump Scare Overlay */}
-            {jumpScareRef.current && (
-                <div className="absolute inset-0 bg-red-600 mix-blend-multiply z-20 flex items-center justify-center animate-ping">
-                    <h1 className="text-9xl font-black text-black">RUDE!</h1>
+            {/* Victory / Game Over Overlay */}
+            {(gameOver || jumpScareRef.current) && (
+                <div className={`absolute inset-0 z-20 flex flex-col items-center justify-center ${gameOver ? 'bg-yellow-900' : 'bg-red-600'} mix-blend-multiply transition-opacity duration-1000`}>
+                    {gameOver ? (
+                        // VICTORY SCREEN
+                        <div className="text-center animate-bounce">
+                            <h1 className="text-9xl font-black text-yellow-100 mb-8 drop-shadow-lg">SURVIVED</h1>
+                            <p className="text-4xl text-yellow-300 mb-8">REWARD: ALMOND WATER</p>
+                            <img src={`${import.meta.env.BASE_URL}images/cake.png`} className="w-64 h-64 mx-auto pixelated animate-spin" alt="Cake" />
+                            <button onClick={() => window.location.reload()} className="mt-12 px-8 py-4 bg-yellow-600 text-black font-bold text-2xl hover:bg-yellow-500">REPLAY</button>
+                        </div>
+                    ) : (
+                        // JUMPSCARE
+                        <h1 className="text-9xl font-black text-black animate-ping">RUDE!</h1>
+                    )}
                 </div>
             )}
 
