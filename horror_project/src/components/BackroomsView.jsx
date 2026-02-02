@@ -6,30 +6,24 @@ import { Skull, Eye, Volume2, VolumeX, AlertCircle, ArrowLeft, Move, Info, Key, 
 
 const createScarecrow = () => {
     const group = new THREE.Group();
-
-    // Scaling Up significantly (2x Base)
     const baseScale = 2.0;
     group.scale.set(baseScale, baseScale, baseScale);
 
-    // Post (Elongated)
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 1 });
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 6, 0.15), woodMat);
     post.position.y = 3.0;
     group.add(post);
 
-    // Crossbar
     const crossbar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.15, 0.15), woodMat);
     crossbar.position.y = 4.8;
     crossbar.rotation.z = (Math.random() - 0.5) * 0.4;
     group.add(crossbar);
 
-    // Head (Burlap Sack - Blocky)
     const sackMat = new THREE.MeshStandardMaterial({ color: 0xc2b280, roughness: 1 });
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.7), sackMat); // Bigger head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.7), sackMat);
     head.position.y = 5.4;
     group.add(head);
 
-    // Eyes (X Shape)
     const xMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const xGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.4);
 
@@ -48,13 +42,11 @@ const createScarecrow = () => {
     group.add(createEye(-0.2, 5.45, 0.36));
     group.add(createEye(0.2, 5.45, 0.36));
 
-    // Stitched Smile
     const smileCurve = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 8, 8, Math.PI), xMat);
     smileCurve.rotation.x = Math.PI;
     smileCurve.position.set(0, 5.2, 0.36);
     group.add(smileCurve);
 
-    // Tattered Coat (Longer)
     const clothGeo = new THREE.ConeGeometry(1.2, 4.5, 5, 1, true);
     const clothMat = new THREE.MeshStandardMaterial({ color: 0x4a3c31, side: THREE.DoubleSide, roughness: 1 });
     const coat = new THREE.Mesh(clothGeo, clothMat);
@@ -92,12 +84,10 @@ const createRuinsColumn = () => {
     const stoneMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 });
     const vineMat = new THREE.MeshStandardMaterial({ color: 0x228822, roughness: 1.0 });
 
-    // Base
     const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1.5), stoneMat);
     base.position.y = 0.5;
     group.add(base);
 
-    // Column Segments
     const height = 2 + Math.random() * 4;
     const segments = Math.floor(height);
     for (let i = 0; i < segments; i++) {
@@ -156,15 +146,15 @@ const BackroomsView = ({ onExit }) => {
 
     const moveState = useRef({
         forward: false, backward: false, left: false, right: false,
-        smile: false, run: false
+        jump: false, run: false
     });
+
+    // PHYSICS
+    const velocity = useRef(new THREE.Vector3());
 
     const cellSize = 10;
     const validSpawnPoints = useRef([]);
 
-    // Check local storage for high score? Nah, Keep it simple.
-
-    // Spawn Lists
     const partySpawns = useRef([]);
     const cornSpawns = useRef([]);
     const ruinsSpawns = useRef([]);
@@ -216,18 +206,11 @@ const BackroomsView = ({ onExit }) => {
         };
         const handleMouseMove = (e) => {
             if (document.pointerLockElement === containerRef.current) {
-                // Standard FPS: Y-axis is Yaw (World Up), X-axis is Pitch (Local Right)
                 sceneRef.current.camera.rotation.y -= e.movementX * 0.002;
                 sceneRef.current.camera.rotation.x -= e.movementY * 0.002;
                 // Clamp Pitch
                 sceneRef.current.camera.rotation.x = Math.max(-1.5, Math.min(1.5, sceneRef.current.camera.rotation.x));
-                // Ensure Z is 0 (No roll)
                 sceneRef.current.camera.rotation.z = 0;
-                // NOTE: ThreeJS camera rotation order is usually XYZ, which might cause gimbal lock issues if we aren't careful.
-                // Ideally we use a Pitch Object and a Yaw Object.
-                // For simplicity in this quick implementation, direct rotation is often "Okay" if Z is locked, 
-                // but proper FPS uses: PlayerObject(Yaw) -> Camera(Pitch).
-                // Let's stick to direct camera manipulation but force order YXZ to fix gimbal lock.
                 sceneRef.current.camera.rotation.order = "YXZ";
             }
         };
@@ -236,9 +219,9 @@ const BackroomsView = ({ onExit }) => {
             switch (e.code) {
                 case 'KeyW': moveState.current.forward = true; break;
                 case 'KeyS': moveState.current.backward = true; break;
-                case 'KeyA': moveState.current.left = true; break; // Strafe Left
-                case 'KeyD': moveState.current.right = true; break; // Strafe Right
-                case 'Space': moveState.current.smile = true; break;
+                case 'KeyA': moveState.current.left = true; break;
+                case 'KeyD': moveState.current.right = true; break;
+                case 'Space': moveState.current.jump = true; break; // JUMP
                 case 'ShiftLeft':
                 case 'ShiftRight': moveState.current.run = true; break;
             }
@@ -249,7 +232,7 @@ const BackroomsView = ({ onExit }) => {
                 case 'KeyS': moveState.current.backward = false; break;
                 case 'KeyA': moveState.current.left = false; break;
                 case 'KeyD': moveState.current.right = false; break;
-                case 'Space': moveState.current.smile = false; break;
+                case 'Space': moveState.current.jump = false; break;
                 case 'ShiftLeft':
                 case 'ShiftRight': moveState.current.run = false; break;
             }
@@ -279,11 +262,11 @@ const BackroomsView = ({ onExit }) => {
 
         const scene = new THREE.Scene();
         sceneRef.current = scene;
-        scene.rotation.order = "YXZ"; // Not scene, camera needs this.
+        scene.rotation.order = "YXZ";
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.rotation.order = "YXZ"; // Critical for FPS
-        sceneRef.current.camera = camera; // Hack to access in MouseMove
+        camera.rotation.order = "YXZ";
+        sceneRef.current.camera = camera;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -295,7 +278,7 @@ const BackroomsView = ({ onExit }) => {
         const dirtMat = new THREE.MeshStandardMaterial({ map: dirtTex, color: 0x333333, roughness: 1.0 });
         const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x221100 });
         const stoneFloorMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
-        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 }); // Added missing material
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 });
 
         // GROUPS
         partyGroupRef.current = new THREE.Group();
@@ -308,7 +291,6 @@ const BackroomsView = ({ onExit }) => {
         scene.add(ruinsGroupRef.current);
 
         // --- GRID GENERATION ---
-        // 12x12 Maze Data
         const mazeGrid = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
@@ -421,15 +403,14 @@ const BackroomsView = ({ onExit }) => {
         }
 
 
-        // LIGHTING (Daylight Boost)
-        const ambientLight = new THREE.AmbientLight(0xffaa00, 1.0); // BRIGHT
+        // LIGHTING
+        const ambientLight = new THREE.AmbientLight(0xffaa00, 1.0);
         scene.add(ambientLight);
 
         const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
         sunLight.position.set(50, 100, 50);
         scene.add(sunLight);
 
-        // Flashlight (Ultra Bright)
         const flashlight = new THREE.SpotLight(0xffddaa, 8.0, 120, Math.PI / 3, 0.4, 1);
         flashlight.position.set(0, 0, 0);
         flashlight.target.position.set(0, 0, -1);
@@ -460,7 +441,7 @@ const BackroomsView = ({ onExit }) => {
         spawnKeys(cornSpawns.current, cornfieldGroupRef.current);
         spawnKeys(ruinsSpawns.current, ruinsGroupRef.current);
 
-        // ENEMIES (BIGGER & SCARIER)
+        // ENEMIES
         const spawnMob = (type, list, group) => {
             if (list.length === 0) return;
             const pt = list[Math.floor(Math.random() * list.length)];
@@ -468,29 +449,25 @@ const BackroomsView = ({ onExit }) => {
             if (type === 'HOST') {
                 const mat = new THREE.SpriteMaterial({ map: hostTex, transparent: true });
                 mob = new THREE.Sprite(mat);
-                mob.scale.set(3.0, 7.0, 1); // Bigger Host
+                mob.scale.set(3.0, 7.0, 1);
                 mob.userData = { type, state: 'PATROL', level: 'PARTY', spawnY: 0 };
             } else if (type === 'SCARECROW') {
                 mob = createScarecrow();
                 mob.userData = { type, state: 'FROZEN', level: 'CORNFIELD', spawnY: 0 };
             } else {
-                // RUINS MINOTAUR (GIANT)
                 mob = new THREE.Group();
-                const body = new THREE.Mesh(new THREE.BoxGeometry(3, 7, 3), new THREE.MeshStandardMaterial({ color: 0x550000, roughness: 0.5 })); // HUGE
+                const body = new THREE.Mesh(new THREE.BoxGeometry(3, 7, 3), new THREE.MeshStandardMaterial({ color: 0x550000, roughness: 0.5 }));
                 body.position.y = -0.5;
                 mob.add(body);
-
                 const head = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2.5), new THREE.MeshStandardMaterial({ color: 0x330000 }));
                 head.position.set(0, 3.5, 0.5);
                 mob.add(head);
-
                 const horn = new THREE.Mesh(new THREE.ConeGeometry(0.3, 2), new THREE.MeshBasicMaterial({ color: 0xffffff }));
                 horn.position.set(0.8, 4.5, 0.5); horn.rotation.z = -0.5;
                 mob.add(horn.clone());
                 horn.position.set(-0.8, 4.5, 0.5); horn.rotation.z = 0.5;
                 mob.add(horn);
-
-                mob.scale.set(1.5, 1.5, 1.5); // 1.5x Multiplier on top of Giant Geo
+                mob.scale.set(1.5, 1.5, 1.5);
                 mob.userData = { type, state: 'CHASE', level: 'RUINS', spawnY: 2 };
             }
             mob.position.set(pt.x, mob.userData.spawnY, pt.z);
@@ -565,26 +542,40 @@ const BackroomsView = ({ onExit }) => {
             const left = moveState.current.left ? 1 : 0;
             const right = moveState.current.right ? 1 : 0;
 
+            // JUMP LOGIC
+            if (moveState.current.jump && camera.position.y <= 0.1) { // Ground check (tolerance)
+                velocity.current.y = 12.0; // Jump force
+                moveState.current.jump = false; // Consume Input
+            }
+
+            // GRAVITY
+            const gravity = -30.0;
+            velocity.current.y += gravity * delta;
+
+            // Apply Velocity
+            camera.position.y += velocity.current.y * delta;
+
+            // Floor Collision
+            if (camera.position.y < 0) {
+                camera.position.y = 0;
+                velocity.current.y = 0;
+            }
+
             if (forward || backward || left || right) {
-                const speed = moveState.current.run ? 16.0 : 8.0; // Faster Sprint
+                const speed = moveState.current.run ? 16.0 : 8.0;
 
                 const direction = new THREE.Vector3();
                 camera.getWorldDirection(direction);
                 direction.y = 0; direction.normalize();
 
                 const sideDir = new THREE.Vector3();
-                sideDir.crossVectors(camera.up, direction).normalize(); // Points Right? Or Left? 
-                // ThreeJS: Up(0,1,0) x Dir(0,0,-1) = (-1,0,0) -> Right is -1?
-                // Standard Right Rule: Index(Up) x Middle(Fwd) -> Thumb(Right).
-                // Let's just try: if 'A' goes wrong way, flip sign.
-                // Usually Cross(Dir, Up) = Right. Cross(Up, Dir) = Left.
-                // So sideDir is LEFT.
+                sideDir.crossVectors(camera.up, direction).normalize();
 
                 const moveVec = new THREE.Vector3();
                 if (forward) moveVec.add(direction);
                 if (backward) moveVec.sub(direction);
-                if (left) moveVec.add(sideDir);    // Add Left
-                if (right) moveVec.sub(sideDir);   // Sub Left = Right
+                if (left) moveVec.add(sideDir);
+                if (right) moveVec.sub(sideDir);
 
                 moveVec.normalize();
 
@@ -617,9 +608,6 @@ const BackroomsView = ({ onExit }) => {
                     camera.position.x = nextX;
                     camera.position.z = nextZ;
                 }
-
-                const bobFreq = moveState.current.run ? 18 : 10;
-                camera.position.y = Math.sin(time * bobFreq) * 0.15;
             }
 
             // Keys
@@ -656,27 +644,24 @@ const BackroomsView = ({ onExit }) => {
 
                 // ANIMATION
                 if (e.userData.type === 'SCARECROW') {
-                    // Twitch
-                    e.rotation.z = Math.sin(time * 20) * 0.1; // Fast jitter
+                    e.rotation.z = Math.sin(time * 20) * 0.1;
                     e.rotation.x = Math.sin(time * 15) * 0.05;
                 } else if (e.userData.type === 'MINOTAUR') {
-                    // Heave / Breathe
                     const s = 1.5 + Math.sin(time * 3) * 0.1;
                     e.scale.set(s, s, s);
                 }
 
                 // CHASE
-                if (dist < 40) { // Increased Aggro Range
+                if (dist < 40) {
                     const dir = new THREE.Vector3().subVectors(camera.position, e.position).normalize();
                     dir.y = 0;
 
                     const spd = e.userData.type === 'SCARECROW' ? 14 : (e.userData.type === 'MINOTAUR' ? 9 : 6);
                     e.position.addScaledVector(dir, spd * delta);
 
-                    // Look at player
                     if (e.userData.type !== 'HOST') e.lookAt(camera.position.x, e.position.y, camera.position.z);
 
-                    if (dist < 1.5) { // Increased hit radius for big mobs
+                    if (dist < 1.5) {
                         jumpScareRef.current = true;
                         setStatus("CAUGHT");
                         setTimeout(() => window.location.reload(), 2000);
@@ -717,10 +702,7 @@ const BackroomsView = ({ onExit }) => {
                             <div className="h-full bg-yellow-500 transition-all duration-200" style={{ width: `${socialBattery}%` }} />
                         </div>
                         <div className="mt-4 flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-yellow-300">HOLD [SPACE] TO WIDEN SMILE</span>
-                                <div className={`w-8 h-8 rounded-full border-2 ${moveState.current?.smile ? 'bg-green-500 border-green-300' : 'bg-transparent border-red-500'}`} />
-                            </div>
+                            <div className="text-sm text-yellow-300">PRESS [SPACE] TO JUMP</div>
                             <div className="text-sm text-yellow-300">HOLD [SHIFT] TO RUN</div>
                             <div className="text-sm text-yellow-300 text-right mt-2 w-48">
                                 CLICK SCREEN TO ENABLE MOUSE LOOK
