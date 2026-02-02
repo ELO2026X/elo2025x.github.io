@@ -57,7 +57,12 @@ const BackroomsView = ({ onExit }) => {
         // Load Textures
         const wallTexture = textureLoader.load(`${baseUrl}images/wallpaper.png`);
         const carpetTexture = textureLoader.load(`${baseUrl}images/carpet.png`);
-        const bananaTexture = textureLoader.load(`${baseUrl}images/nano_banana.png`);
+        const bananaTexture = textureLoader.load(
+            `${baseUrl}images/nano_banana.png`,
+            () => console.log("Banana Texture Loaded"),
+            undefined,
+            (err) => console.error("Banana Texture Failed:", err)
+        );
 
         // Fix texture wrapping
         wallTexture.wrapS = THREE.RepeatWrapping;
@@ -189,10 +194,20 @@ const BackroomsView = ({ onExit }) => {
         }
 
         // Spawn Enemies slightly away from start (0,0 is start mostly?)
-        // Let's assume camera spawns at (cellSize, 0, cellSize)
-        if (validSpawnPoints.length > 2) {
-            enemies.push(createEnemy(validSpawnPoints[0].x, validSpawnPoints[0].z));
-            enemies.push(createEnemy(validSpawnPoints[Math.floor(validSpawnPoints.length / 2)].x, validSpawnPoints[Math.floor(validSpawnPoints.length / 2)].z));
+        // Camera starts at (cellSize, 0, cellSize) which is index 0 roughly.
+        // We spawn enemies at the END of the validSpawnPoints array to ensure max distance.
+        console.log("Spawning Enemies. Valid Points:", validSpawnPoints.length);
+        if (validSpawnPoints.length > 5) {
+            // Spawn at last index and middle index
+            const lastIdx = validSpawnPoints.length - 1;
+            const midIdx = Math.floor(validSpawnPoints.length / 2);
+
+            const e1 = createEnemy(validSpawnPoints[lastIdx].x, validSpawnPoints[lastIdx].z);
+            const e2 = createEnemy(validSpawnPoints[midIdx].x, validSpawnPoints[midIdx].z);
+            enemies.push(e1, e2);
+            console.log("Enemies Spawned at", validSpawnPoints[lastIdx], validSpawnPoints[midIdx]);
+        } else {
+            console.warn("Not enough spawn points for enemies!");
         }
 
         camera.position.set(cellSize, 0, cellSize);
@@ -243,13 +258,28 @@ const BackroomsView = ({ onExit }) => {
                 const nextX = camera.position.x + direction.x * speed * delta;
                 const nextZ = camera.position.z + direction.z * speed * delta;
 
-                // Simple collision
+                // Collision with Sliding
                 const gridX = Math.round(nextX / cellSize);
                 const gridZ = Math.round(nextZ / cellSize);
 
+                // 1. Try moving Both axes
                 if (grid[gridZ] && grid[gridZ][gridX] === 0) {
                     camera.position.x = nextX;
                     camera.position.z = nextZ;
+                } else {
+                    // 2. Blocked? Try sliding along X
+                    const currGridZ = Math.round(camera.position.z / cellSize);
+                    if (grid[currGridZ] && grid[currGridZ][gridX] === 0) {
+                        camera.position.x = nextX;
+                        // Z stays same
+                    } else {
+                        // 3. Blocked? Try sliding along Z
+                        const currGridX = Math.round(camera.position.x / cellSize);
+                        if (grid[gridZ] && grid[gridZ][currGridX] === 0) {
+                            camera.position.z = nextZ;
+                            // X stays same
+                        }
+                    }
                 }
             }
 
@@ -266,12 +296,11 @@ const BackroomsView = ({ onExit }) => {
                         key.visible = false;
                         collectedKeysRef.current += 1;
                         setKeysCollected(c => c + 1);
+                        console.log("Key Collected! Total:", collectedKeysRef.current);
 
-                        // play sound?
                         if (collectedKeysRef.current >= 3) {
-                            setStatus("KEYS COLLECTED. RUN. SURVIVE.");
-                            // Normally we might spawn escape, but let's just win for now?
-                            // or make enemies faster
+                            setStatus("KEYS COLLECTED. EXIT PORTAL OPENING...");
+                            // Logic to spawn exit would go here
                         }
                     }
                 }
@@ -286,7 +315,7 @@ const BackroomsView = ({ onExit }) => {
 
                 // Line of Sight
                 const dirToPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
-                const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 20);
+                const raycaster = new THREE.Raycaster(enemy.position, dirToPlayer, 0, 30);
                 const intersects = raycaster.intersectObjects(mazeGroup.children);
 
                 let canSee = false;
@@ -294,7 +323,9 @@ const BackroomsView = ({ onExit }) => {
                     canSee = true;
                 }
 
-                if (canSee && dist < 20) {
+                // Reduced aggression radius to 15
+                if (canSee && dist < 15) {
+                    if (enemy.userData.state !== 'CHASE') console.log("Enemy spotted player!", enemy.userData.name);
                     enemy.userData.state = 'CHASE';
                 } else {
                     enemy.userData.state = 'PATROL';
@@ -302,19 +333,18 @@ const BackroomsView = ({ onExit }) => {
 
                 // Movement
                 if (enemy.userData.state === 'CHASE') {
-                    const speed = 4.5 * delta;
+                    const speed = 4.0 * delta; // Slightly slower
                     enemy.position.x += dirToPlayer.x * speed;
                     enemy.position.z += dirToPlayer.z * speed;
 
                     // Jumpscare Trigger
-                    if (dist < 1.5) {
-                        triggerJumpScare();
+                    if (dist < 1.0) { // Must be very close
+                        triggerJumpScare(enemy);
                     }
                 } else {
-                    // Wandering (Simple random walk towards center roughly)
-                    // Just wiggle for now
-                    enemy.position.x += Math.sin(time * 0.001 + enemy.uuid) * delta;
-                    enemy.position.z += Math.cos(time * 0.001 + enemy.uuid) * delta;
+                    // Wandering
+                    enemy.position.x += Math.sin(time * 0.5 + enemy.uuid) * delta;
+                    enemy.position.z += Math.cos(time * 0.5 + enemy.uuid) * delta;
                 }
             });
 
@@ -350,16 +380,41 @@ const BackroomsView = ({ onExit }) => {
 
         const animationId = requestAnimationFrame(animate);
 
-        const triggerJumpScare = () => {
+        const triggerJumpScare = (enemy) => {
             if (jumpScareRef.current) return;
+
+            // Non-fatal Jumpscare
             jumpScareRef.current = true;
-            setGameOver(true);
-            // Audio blast
+            console.log("JUMPSCARE! Teleporting enemy away...");
+
+            // 1. Audio Blast
             if (audioRef.current) {
-                audioRef.current.osc.frequency.setValueAtTime(100, audioRef.current.ctx.currentTime);
-                audioRef.current.osc.frequency.exponentialRampToValueAtTime(1000, audioRef.current.ctx.currentTime + 0.1);
-                audioRef.current.gain.gain.setValueAtTime(1, audioRef.current.ctx.currentTime);
+                const now = audioRef.current.ctx.currentTime;
+                audioRef.current.osc.frequency.setValueAtTime(100, now);
+                audioRef.current.osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                audioRef.current.gain.gain.setValueAtTime(1, now);
+                audioRef.current.gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
             }
+
+            // 2. Flash Overlay (We use setGameOver temporarily for the visual or a new state? 
+            // Let's use a separate state to avoid full game block)
+            setStatus("RUN! IT FOUND YOU!");
+            setSanity(s => Math.max(0, s - 25));
+
+            // 3. Teleport Enemy Away
+            // Find a spawn point far away
+            if (enemy && validSpawnPoints.length > 0) {
+                // Just pick a random valid point
+                const randPt = validSpawnPoints[Math.floor(Math.random() * validSpawnPoints.length)];
+                enemy.position.set(randPt.x, -1, randPt.z);
+                enemy.userData.state = 'PATROL'; // Reset state
+            }
+
+            // Reset flag after a delay so we can get scared again
+            setTimeout(() => {
+                jumpScareRef.current = false;
+                setStatus("Objective: Find Keys");
+            }, 2000);
         }
 
         return () => {
