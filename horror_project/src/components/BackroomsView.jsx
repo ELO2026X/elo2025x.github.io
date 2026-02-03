@@ -209,43 +209,73 @@ const BackroomsView = ({ onExit }) => {
         if (audioEnabled) return;
         const baseUrl = import.meta.env.BASE_URL;
 
-        // Load Tracks
+        // Load Tracks (Arrays for Randomization)
         const tracks = {
-            PARTY: new Audio(`${baseUrl}audio/party_ambience.mp3`),
-            CORNFIELD: new Audio(`${baseUrl}audio/cornfield_ambience.mp3`),
-            RUINS: new Audio(`${baseUrl}audio/ruins_ambience.mp3`),
-            CHASE: new Audio(`${baseUrl}audio/chase_music.mp3`)
+            PARTY: [
+                new Audio(`${baseUrl}audio/party_ambience.mp3`),
+                new Audio(`${baseUrl}audio/party_ambience_2.mp3`)
+            ],
+            CORNFIELD: [
+                new Audio(`${baseUrl}audio/cornfield_ambience.mp3`),
+                new Audio(`${baseUrl}audio/cornfield_ambience_2.mp3`)
+            ],
+            RUINS: [
+                new Audio(`${baseUrl}audio/ruins_ambience.mp3`),
+                new Audio(`${baseUrl}audio/ruins_ambience_2.mp3`)
+            ],
+            CHASE: [
+                new Audio(`${baseUrl}audio/chase_music.mp3`),
+                new Audio(`${baseUrl}audio/chase_music_2.mp3`)
+            ]
         };
 
-        // Loop Settings
-        tracks.PARTY.loop = true;
-        tracks.CORNFIELD.loop = true;
-        tracks.RUINS.loop = true;
-        tracks.CHASE.loop = true;
-
-        // Volume Mix
-        tracks.PARTY.volume = 0.6;
-        tracks.CORNFIELD.volume = 0.7;
-        tracks.RUINS.volume = 0.8;
-        tracks.CHASE.volume = 1.0;
+        // Loop Settings & Volume
+        Object.values(tracks).forEach(trackList => {
+            trackList.forEach(t => {
+                t.loop = true;
+                // Base Volumes
+                if (trackList === tracks.PARTY) t.volume = 0.6;
+                if (trackList === tracks.CORNFIELD) t.volume = 0.7;
+                if (trackList === tracks.RUINS) t.volume = 0.8;
+                if (trackList === tracks.CHASE) t.volume = 1.0;
+            });
+        });
 
         audioTracks.current = tracks;
         setAudioEnabled(true);
     };
 
     const playTrack = (trackName) => {
-        Object.values(audioTracks.current).forEach(t => {
-            if (t !== audioTracks.current[trackName]) {
+        // Stop all tracks
+        Object.values(audioTracks.current).forEach(trackList => {
+            trackList.forEach(t => {
                 t.pause();
                 t.currentTime = 0;
-            }
+            });
         });
-        const track = audioTracks.current[trackName];
-        if (track) {
-            track.play().catch(e => console.log("Audio play failed:", e));
+
+        const trackList = audioTracks.current[trackName];
+        if (trackList && trackList.length > 0) {
+            // Randomly select one track from the variants
+            const randomTrack = trackList[Math.floor(Math.random() * trackList.length)];
+            randomTrack.play().catch(e => console.log("Audio play failed:", e));
+
+            // Store reference to currently playing track name (for easier state management, we just keep the category name)
             currentTrack.current = trackName;
+            // Note: We don't store the specific random instance in currentTrack, 
+            // but the pointer lock handler needs to know what to resume.
+            // For simplicity, pointer lock resume will just pick a random one again or we could store the instance.
+            // Let's store the instance in a separate ref if we needed perfect resume, 
+            // but for this "dreamcore" vibe, restarting/switching is fine or we rely on the fact 
+            // that pointer lock just calls play() on the *category*? 
+            // Wait, the pointer lock handler below tries to access audioTracks.current[currentTrack.current].play().
+            // That will fail because audioTracks.current[name] is now an ARRAY. 
+
+            // We need to store the *active instance* to resume it correctly.
+            activeAudioInstance.current = randomTrack;
         }
     };
+    const activeAudioInstance = useRef(null);
 
     const startGame = (level) => {
         setIsInMenu(false);
@@ -261,8 +291,8 @@ const BackroomsView = ({ onExit }) => {
         const handleClick = () => {
             if (!isInMenu && !gameOver) {
                 containerRef.current.requestPointerLock();
-                if (audioEnabled && currentTrack.current) {
-                    audioTracks.current[currentTrack.current].play().catch(e => { });
+                if (audioEnabled && activeAudioInstance.current) {
+                    activeAudioInstance.current.play().catch(e => { });
                 }
             }
         };
