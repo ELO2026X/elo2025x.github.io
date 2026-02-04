@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EntropySystem } from './EntropySystem.js';
+import { HeatSystem } from './HeatSystem.js';
+import { FalloutSystem } from './FalloutSystem.js';
+import { MoltbookAgent } from './MoltbookAgent.js';
 
 // --- CONFIGURATION ---
 const CONFIG = {
@@ -17,6 +21,9 @@ const CONFIG = {
 let scene, camera, renderer, controls;
 let clock, delta;
 let player, playerVelocity;
+let entropySys;
+let falloutSys;
+let moltAgent;
 const keyState = {};
 
 // --- INITIALIZATION ---
@@ -59,6 +66,14 @@ function init() {
     // 6. Player Setup
     createPlayer();
 
+    // 6.5 Entropy & Fallout Systems
+    window.heatSys = new HeatSystem();
+    entropySys = new EntropySystem();
+    falloutSys = new FalloutSystem(scene);
+
+    // 6.6 Moltbook Agent
+    moltAgent = new MoltbookAgent(scene, new THREE.Vector3(10, 5, 10)); // Spawn near start
+
     // 7. Creatures (Osamu Sato Style)
     createPsychedelicCreatures();
 
@@ -69,7 +84,17 @@ function init() {
     controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
 
     window.addEventListener('resize', onWindowResize);
-    document.addEventListener('keydown', (e) => keyState[e.code] = true);
+    document.addEventListener('keydown', (e) => {
+        keyState[e.code] = true;
+        if (e.code === 'KeyE') {
+            entropySys.reduceEntropy(15); // Order (Cooling)
+            if (player && falloutSys) falloutSys.spawnIce(player.position);
+        }
+        if (e.code === 'KeyR') {
+            entropySys.addEntropy(15);    // Chaos (Heating)
+            if (player && falloutSys) falloutSys.spawnFire(player.position);
+        }
+    });
     document.addEventListener('keyup', (e) => keyState[e.code] = false);
 
     clock = new THREE.Clock();
@@ -559,6 +584,10 @@ function animate() {
 
     delta = clock.getDelta();
     const elapsedTime = clock.getElapsedTime();
+
+    if (entropySys) entropySys.update(delta);
+    if (falloutSys) falloutSys.update(delta);
+    if (moltAgent && player) moltAgent.update(delta, player.position);
 
     updateCoins(delta);
     updateCreatures(delta, elapsedTime);

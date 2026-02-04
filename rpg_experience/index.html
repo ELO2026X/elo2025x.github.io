@@ -213,8 +213,28 @@
                 <li><span class="text-white font-mono">[W,A,S,D]</span> MOVE</li>
                 <li><span class="text-white font-mono">[SPACE]</span> JUMP</li>
                 <li><span class="text-white font-mono">[SHIFT]</span> SPRINT</li>
+                <li><span class="text-white font-mono">[E]</span> CRYO (ORDER)</li>
+                <li><span class="text-white font-mono">[R]</span> VENT (CHAOS)</li>
                 <li><span class="text-white font-mono">[MOUSE]</span> LOOK</li>
             </ul>
+        </div>
+
+        <!-- ENTROPY GAUGE -->
+        <div
+            style="position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); width: 300px; text-align: center;">
+            <p id="entropy-label" class="font-mono text-xs font-bold text-white mb-2"
+                style="text-shadow: 0 0 5px white;">ENTROPY: 50% [STABLE]</p>
+            <div
+                style="width: 100%; height: 20px; background-color: #333; border: 2px solid white; position: relative;">
+                <div id="entropy-fill"
+                    style="width: 50%; height: 100%; background-color: #33ff33; transition: width 0.1s, background-color 0.5s;">
+                </div>
+                <!-- Equilibrium Marker -->
+                <div
+                    style="position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background-color: rgba(255,255,255,0.5);">
+                </div>
+            </div>
+            <p class="text-xs text-gray mt-1">MAINTAIN EQUILIBRIUM (40-60)</p>
         </div>
 
         <div style="position: absolute; top: 1.5rem; right: 1.5rem;">
