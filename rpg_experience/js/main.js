@@ -86,14 +86,6 @@ function init() {
     window.addEventListener('resize', onWindowResize);
     document.addEventListener('keydown', (e) => {
         keyState[e.code] = true;
-        if (e.code === 'KeyE') {
-            entropySys.reduceEntropy(15); // Order (Cooling)
-            if (player && falloutSys) falloutSys.spawnIce(player.position);
-        }
-        if (e.code === 'KeyR') {
-            entropySys.addEntropy(15);    // Chaos (Heating)
-            if (player && falloutSys) falloutSys.spawnFire(player.position);
-        }
     });
     document.addEventListener('keyup', (e) => keyState[e.code] = false);
 
@@ -588,6 +580,25 @@ function animate() {
     if (entropySys) entropySys.update(delta);
     if (falloutSys) falloutSys.update(delta);
     if (moltAgent && player) moltAgent.update(delta, player.position);
+
+    // CONTINUOUS SPELLCASTING (Hold Key)
+    // Rate limit spawns to avoid crashing (every few frames or based on time)
+    if (falloutSys && entropySys && player) {
+        if (keyState['KeyE']) {
+            // ORDER: Ice Sculptures
+            entropySys.reduceEntropy(1 * (delta * 60)); // Continuous cooling
+            if (Math.random() < 0.2) { // 20% chance per frame (approx 12/sec)
+                falloutSys.spawnIceSculpture(player.position);
+            }
+        }
+        if (keyState['KeyR']) {
+            // CHAOS: Psychedelic Flares
+            entropySys.addEntropy(1 * (delta * 60)); // Continuous heating
+            // Spawn multiple flares for intensity
+            falloutSys.spawnPsychedelicFlare(player.position);
+            if (Math.random() < 0.5) falloutSys.spawnPsychedelicFlare(player.position);
+        }
+    }
 
     updateCoins(delta);
     updateCreatures(delta, elapsedTime);
