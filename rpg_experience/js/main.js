@@ -83,10 +83,6 @@ function init() {
     gatherSys.init();
 
     // Globals for convenience
-    const keyState = {};
-    let entropySys, falloutSys, villageSys, gatherSys, monsterSys;
-    let isAttacking = false;
-    let attackCooldown = 0;
     window.entropySys = entropySys;
     window.gatherSys = gatherSys;
 
