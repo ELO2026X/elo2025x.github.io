@@ -6,6 +6,7 @@ import { HeatSystem } from './HeatSystem.js';
 import { FalloutSystem } from './FalloutSystem.js';
 import { VillageSystem } from './VillageSystem.js';
 import { GatheringSystem } from './GatheringSystem.js';
+import { MonsterSystem } from './MonsterSystem.js';
 import { MoltbookAgent } from './MoltbookAgent.js';
 
 // --- CONFIGURATION ---
@@ -67,8 +68,15 @@ const CONFIG = {
     gatherSys.init();
     
     // Globals for convenience
+    const keyState = {};
+let entropySys, falloutSys, villageSys, gatherSys, monsterSys;
+let isAttacking = false;
+let attackCooldown = 0;
     window.entropySys = entropySys;
     window.gatherSys = gatherSys;
+
+    monsterSys = new MonsterSystem(scene);
+    monsterSys.init();
 
     // 6.6 Moltbook Agent
     moltAgent = new MoltbookAgent(scene, new THREE.Vector3(10, 5, 10)); // Spawn near start
@@ -646,6 +654,29 @@ function animate() {
     }
     if (gatherSys && player) {
         gatherSys.update(delta, player.position, keyState);
+    }
+    
+    // COMBAT LOGIC
+    if (attackCooldown > 0) attackCooldown -= delta;
+    if (keyState['Space'] && attackCooldown <= 0 && keyState['ShiftLeft']) { 
+        // Shift+Space = Attack (For now, or use Click)
+        // Let's use Mouse Click ideally, but for now Key 'V' or similar
+    }
+    
+    // Better Attack Input: Key V
+    if (keyState['KeyV'] && attackCooldown <= 0) {
+        isAttacking = true;
+        attackCooldown = 0.5; // Swing time
+        console.log("Player Attacking!");
+        
+        // Visual Swing (Quick rotate hack)
+        // Access Sword Group if possible, or just animate arm
+    } else {
+        isAttacking = false;
+    }
+
+    if (monsterSys && player) {
+        monsterSys.update(delta, player.position, isAttacking);
     }
 
     // CONTINUOUS SPELLCASTING (Hold Key)
