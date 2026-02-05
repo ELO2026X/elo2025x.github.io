@@ -386,6 +386,18 @@ function createPlayer() {
     visor.position.set(0, 0, 0.25); // Eye level
     headGroup.add(visor);
 
+    // --- HUNTER HELMET CREST (Rathian Style) ---
+    const armorMat = new THREE.MeshStandardMaterial({
+        color: 0x880000, // Dark Red Armor
+        metalness: 1.0,
+        roughness: 0.3
+    });
+    const crestGeo = new THREE.ConeGeometry(0.1, 0.6, 4);
+    const crest = new THREE.Mesh(crestGeo, armorMat);
+    crest.rotation.x = -Math.PI / 4;
+    crest.position.set(0, 0.4, -0.1);
+    headGroup.add(crest);
+
     // --- LIMBS Helper ---
     function createLimb(width, length, material, jointMat) {
         const limbGroup = new THREE.Group();
@@ -436,6 +448,48 @@ function createPlayer() {
     const rightLeg = createLimb(legWidth, legLength, skinMat, jointMat);
     rightLeg.position.set(0.2, 0, 0);
     pelvis.add(rightLeg);
+
+    // --- HUNTER ARMOR (Pauldrons) ---
+    const pdrnGeo = new THREE.ConeGeometry(0.25, 0.4, 4);
+
+    // Left Pauldron
+    const lPdrn = new THREE.Mesh(pdrnGeo, armorMat);
+    lPdrn.position.set(0, 0, 0); // On the joint
+    lPdrn.rotation.z = Math.PI / 3;
+    leftArm.add(lPdrn);
+
+    // Right Pauldron
+    const rPdrn = new THREE.Mesh(pdrnGeo, armorMat);
+    rPdrn.position.set(0, 0, 0);
+    rPdrn.rotation.z = -Math.PI / 3;
+    rightArm.add(rPdrn);
+
+    // --- GREAT SWORD (Back Mounted) ---
+    const swordGroup = new THREE.Group();
+    // Blade
+    const bladeGeo = new THREE.BoxGeometry(0.3, 1.5, 0.05);
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 1.0, roughness: 0.2 });
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.position.y = 0.5;
+    swordGroup.add(blade);
+
+    // Hilt
+    const hiltGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.4);
+    const hilt = new THREE.Mesh(hiltGeo, armorMat);
+    hilt.position.y = -0.3;
+    swordGroup.add(hilt);
+
+    // Guard
+    const grdGeo = new THREE.BoxGeometry(0.4, 0.1, 0.1);
+    const guard = new THREE.Mesh(grdGeo, armorMat);
+    guard.position.y = -0.2;
+    swordGroup.add(guard);
+
+    // Mount to Back
+    swordGroup.position.set(0, 0.2, -0.25);
+    swordGroup.rotation.z = -Math.PI / 6; // Angled carry
+    swordGroup.rotation.x = Math.PI / 12;
+    torso.add(swordGroup);
 
     scene.add(player);
     playerVelocity = new THREE.Vector3();
