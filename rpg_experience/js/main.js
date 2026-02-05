@@ -649,8 +649,6 @@ function animate() {
              // Force Entropy to stabilize rapidly
              if (entropySys) entropySys.reduceEntropy(delta * 10); 
         }
-             if (entropySys) entropySys.reduceEntropy(delta * 10); 
-        }
     }
     if (gatherSys && player) {
         gatherSys.update(delta, player.position, keyState);

@@ -259,7 +259,7 @@
         </div>
     </div> <!-- Close UI Layer -->
 
-    <script type="module" src="./js/main.js?v=hunter_v3"></script>
+    <script type="module" src="./js/main.js?v=hunter_v4"></script>
 
     <!-- YouTube Logic -->
     <script>
@@ -306,14 +306,15 @@
             player = new YT.Player('player', {
                 height: '1',
                 width: '1',
-                videoId: 'bJ9r_1f1h4U', // Aim To Head Mix (Embed Safe)
+                videoId: 'M5QGkOGZKvQ', // "Dark Cyberpunk Music" (Embed Safe)
                 playerVars: {
                     'playsinline': 1,
                     'controls': 0,
                     'loop': 1,
-                    'playlist': 'bJ9r_1f1h4U', // Loop the single video
-                    'autoplay': 0,
-                    'origin': window.location.origin
+                    'playlist': 'M5QGkOGZKvQ',
+                    'autoplay': 1,
+                    'origin': 'https://elo2026x.github.io', // Hardcoded Origin
+                    'enablejsapi': 1
                 },
                 events: {
                     'onReady': onPlayerReady,
