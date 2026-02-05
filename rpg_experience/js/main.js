@@ -1,8 +1,10 @@
+```
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EntropySystem } from './EntropySystem.js';
 import { HeatSystem } from './HeatSystem.js';
 import { FalloutSystem } from './FalloutSystem.js';
+import { VillageSystem } from './VillageSystem.js';
 import { MoltbookAgent } from './MoltbookAgent.js';
 
 // --- CONFIGURATION ---
@@ -21,8 +23,7 @@ const CONFIG = {
 let scene, camera, renderer, controls;
 let clock, delta;
 let player, playerVelocity;
-let entropySys;
-let falloutSys;
+let entropySys, falloutSys, villageSys;
 let moltAgent;
 const keyState = {};
 
@@ -70,6 +71,9 @@ function init() {
     window.heatSys = new HeatSystem();
     entropySys = new EntropySystem();
     falloutSys = new FalloutSystem(scene);
+    
+    villageSys = new VillageSystem(scene);
+    villageSys.init();
 
     // 6.6 Moltbook Agent
     moltAgent = new MoltbookAgent(scene, new THREE.Vector3(10, 5, 10)); // Spawn near start
@@ -634,6 +638,15 @@ function animate() {
     if (entropySys) entropySys.update(delta);
     if (falloutSys) falloutSys.update(delta);
     if (moltAgent && player) moltAgent.update(delta, player.position);
+    if (villageSys && player) {
+        villageSys.update(delta, player.position);
+        
+        // SAFE ZONE LOGIC
+        if (villageSys.isInsideSafeZone(player.position)) {
+             // Force Entropy to stabilize rapidly
+             if (entropySys) entropySys.reduceEntropy(delta * 10); 
+        }
+    }
 
     // CONTINUOUS SPELLCASTING (Hold Key)
     // Rate limit spawns to avoid crashing (every few frames or based on time)
