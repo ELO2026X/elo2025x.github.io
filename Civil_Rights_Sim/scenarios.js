@@ -105,7 +105,9 @@ export const SCENARIOS = [
         intro: "LEVEL 4: THE BLACKOUT\nOBJECTIVE: Survive the 'Spoliation Event' and file the Federal Injunction.",
         attacks: [
             { name: "Grand Jury Indictment", dmg: 30, msg: "D.A. INDICTS YOU ON TRUMPED CHARGES." },
-            { name: "Motion to Dismiss", dmg: 15, msg: "D.A. FILES 12(b)(6) MOTION." },
+            { name: "Motion to Dismiss", dmg: 10, msg: "D.A. FILES 12(b)(6) MOTION." },
+            { name: "Brady Violation", dmg: 20, effect: "SPOLIATION", msg: "D.A. WITHHOLDS EXCULPATORY EVIDENCE." },
+            { name: "Sovereign Immunity", dmg: 5, effect: "HEAL_ENEMY", msg: "D.A. CLAIMS 'PROSECUTORIAL IMMUNITY'." },
             { name: "Server Wipe", dmg: 50, effect: "CRITICAL_SPOLIATION", msg: "JAN 28 BLACKOUT: ALL LOGS DELETED." }
         ]
     }

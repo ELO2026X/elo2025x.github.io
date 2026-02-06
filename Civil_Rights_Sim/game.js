@@ -142,8 +142,20 @@ class GameState {
 
         this.log(`>> TURN ${this.turn}: ${this.enemy.name} ACTS...`, "log-turn");
 
-        // Pick random attack
-        const attack = this.enemy.attacks[Math.floor(Math.random() * this.enemy.attacks.length)];
+        // Pick random attack (Avoid repeating the same one if possible)
+        let attack;
+        if (this.enemy.attacks.length > 1 && this.lastAttackIndex !== undefined) {
+            let newIndex;
+            do {
+                newIndex = Math.floor(Math.random() * this.enemy.attacks.length);
+            } while (newIndex === this.lastAttackIndex);
+            this.lastAttackIndex = newIndex;
+            attack = this.enemy.attacks[newIndex];
+        } else {
+            const index = Math.floor(Math.random() * this.enemy.attacks.length);
+            this.lastAttackIndex = index;
+            attack = this.enemy.attacks[index];
+        }
 
         // Apply Damage
         let damage = attack.dmg;
