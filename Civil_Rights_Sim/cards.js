@@ -20,6 +20,16 @@ export const CARDS = [
         effect: (state) => {
             state.healPlayer(20);
             return "AGENTS INTERCEPTED NEW METADATA. CREDIBILITY RESTORED.";
+        },
+        // Combo: If PREV was FOIA
+        combo: {
+            triggerId: "FOIA_REQ",
+            name: "THE PAPER TRAIL",
+            msg: "COMBO! 'THE PAPER TRAIL' ACTIVATED. ENEMY STUNNED.",
+            effect: (state) => {
+                state.enemy.stunned = true;
+                return " [COMBO: STUN]";
+            }
         }
     },
     {
@@ -53,6 +63,16 @@ export const CARDS = [
         effect: (state) => {
             state.damageEnemy(50);
             return "CIVIL RIGHTS LAWSUIT FILED! QUALIFIED IMMUNITY PIERCED.";
+        },
+        // Combo: If PREV was DOC_14
+        combo: {
+            triggerId: "DOC_14",
+            name: "FEDERAL PINCER",
+            msg: "COMBO! 'FEDERAL PINCER'. TRIPLE DAMAGE.",
+            effect: (state) => {
+                state.damageEnemy(50); // Bonus 50 
+                return " [COMBO: CRITICAL]";
+            }
         }
     },
     {
@@ -62,7 +82,7 @@ export const CARDS = [
         type: "Pressure",
         desc: "Expose the Water Toxicity. Lowers Enemy HP by 15.",
         effect: (state) => {
-            state.damageEnemyHP(15); // Direct HP damage, bypass immunity
+            state.damageEnemyHP(15);
             return "PUBLIC OUTRAGE! ARSENIC LEVELS EXPOSED.";
         }
     },
