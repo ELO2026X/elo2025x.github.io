@@ -1,23 +1,94 @@
 import { SCENARIOS } from './scenarios.js';
 import { CARDS } from './cards.js';
+import { Player } from './player.js';
 
 class GameState {
     constructor() {
+        this.player = new Player();
         this.currentCaseIndex = 0;
-        this.hp = 100; // Player Credibility
-        this.pressure = 0; // Current Scenario Pressure (0-100)
+
+        // Game State
         this.deck = [];
         this.hand = [];
         this.enemy = null;
         this.turn = 1;
         this.gameOver = false;
         this.playerShield = 0;
+        this.lastCardId = null; // For Combo Logic
+
+        // Bind CLI
+        this.setupCLI();
+        this.updateCharSheet();
     }
 
     // --- INITIALIZATION ---
     init() {
         this.showCaseSelection();
         this.log("SYSTEM READY. WAITING FOR INPUT...", "system-msg");
+        this.log("TIP: TYPE 'HELP' IN COMMAND LINE FOR ADVANCED OPTIONS.", "system-msg");
+    }
+
+    setupCLI() {
+        const input = document.getElementById('cli-input');
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.parseCommand(input.value);
+                input.value = '';
+            }
+        });
+    }
+
+    // --- CLI PARSER ---
+    parseCommand(cmd) {
+        if (this.gameOver) return;
+
+        const raw = cmd.toUpperCase().trim();
+        const args = raw.split(" ");
+        const action = args[0];
+
+        this.log(`> COMMAND: ${raw}`, "system-msg");
+
+        switch (action) {
+            case "HELP":
+                this.log("COMMANDS: SUBPOENA [TARGET], CITE [CASE], QUERY [DATA], SCAN", "system-msg");
+                break;
+            case "SUBPOENA":
+                if (args[1] === "BODY_CAM" && this.enemy.name.includes("VPD")) {
+                    this.log(">> VIDEO FILE CORRUPTED (CODE 10). SPOLIATION CONFIRMED (+2 CARDS).", "safe");
+                    this.drawCard(); this.drawCard();
+                } else if (args[1] === "EMAILS") {
+                    this.log(">> 4,000 EMAILS DUMPED. PARSING...", "safe");
+                    this.damageEnemy(15);
+                } else {
+                    this.log(">> SUBPOENA QUASHED. NO RECORDS FOUND.", "danger");
+                }
+                break;
+            case "CITE":
+                if (args[1] === "MONELL") {
+                    this.log(">> PRECEDENT ESTABLISHED: POLICY MAKER LIABILITY.", "safe");
+                    this.damageEnemy(20);
+                } else if (args[1] === "BRADY") {
+                    this.log(">> BRADY CLAIM ASSERTED. ENEMY STUNNED.", "safe");
+                    this.enemy.stunned = true;
+                } else {
+                    this.log(">> UNKNOWN CITATION.", "danger");
+                }
+                break;
+            case "QUERY":
+                if (args[1] && args[1].includes("GRANT")) {
+                    this.log(">> OLS DATABASE: $741k DISALLOWANCE FOUND.", "safe");
+                    this.damageEnemyHP(25);
+                } else {
+                    this.log(">> DATABASE CONNECTION REFUSED.", "danger");
+                }
+                break;
+            case "SCAN":
+                this.log(">> SCANNING MOLTBOOK SUBSTRATE...", "system-msg");
+                this.healPlayer(15);
+                break;
+            default:
+                this.log(">> SYNTAX ERROR. COMMAND NOT RECOGNIZED.", "danger");
+        }
     }
 
     showCaseSelection() {
@@ -40,22 +111,25 @@ class GameState {
         const scenario = SCENARIOS[index];
         this.enemy = {
             name: scenario.enemy,
-            hp: scenario.hp, // This is effectively "Immunity Points"
+            hp: scenario.hp,
             maxHp: scenario.hp,
             immunity: scenario.immunity,
             attacks: scenario.attacks,
             art: scenario.art,
-            desc: scenario.desc
+            desc: scenario.desc,
+            stunned: false
         };
 
-        // Reset Player State
-        this.hp = 100;
-        this.pressure = 0;
+        // Player Reset (HP carries over in Campaign, but for now reset to Max if dead)
+        if (this.player.stats.resolve <= 0) this.player.stats.resolve = 100;
+
+        // Reset Combat State
         this.playerShield = 0;
         this.turn = 1;
         this.gameOver = false;
+        this.lastCardId = null;
         this.setupDeck();
-        this.drawHand(3);
+        this.drawHand(this.player.stats.logic); // Hand Size based on Logic
 
         // Update UI
         document.getElementById('modal-overlay').classList.add('hidden');
@@ -68,7 +142,7 @@ class GameState {
 
         // Log
         const log = document.getElementById('log-content');
-        log.innerHTML = ''; // sensitive clear
+        log.innerHTML = '';
         this.log(`>> INITIALIZING ${scenario.title}...`, "system-msg");
         this.log(scenario.intro, "system-msg");
 
@@ -78,9 +152,8 @@ class GameState {
 
     setupDeck() {
         this.deck = [];
-        // Add copies of cards
         CARDS.forEach(card => {
-            this.deck.push(card, card, card); // 3 copies of each
+            this.deck.push(card, card, card);
         });
         this.shuffleDeck();
     }
@@ -94,9 +167,7 @@ class GameState {
 
     drawHand(count) {
         for (let i = 0; i < count; i++) {
-            if (this.deck.length > 0) {
-                this.hand.push(this.deck.pop());
-            }
+            this.drawCard();
         }
     }
 
@@ -106,7 +177,7 @@ class GameState {
             this.renderHand();
         } else {
             this.log("DECK EMPTY! SHUFFLING DISCARD...", "system-msg");
-            this.setupDeck(); // simplistic reshuffle 
+            this.setupDeck();
             this.hand.push(this.deck.pop());
         }
     }
@@ -120,7 +191,21 @@ class GameState {
 
         // Execute Card Effect
         this.log(`> PLAYER PLAYS: ${card.title}`, "combat-msg");
-        const effectMsg = card.effect(this); // Pass game state to card
+        let effectMsg = card.effect(this);
+
+        // CHECK COMBOS
+        if (this.lastCardId === "FOIA_REQ" && card.id === "DATA_MINING") {
+            this.log(">> COMBO! 'THE PAPER TRAIL' ACTIVATED. ENEMY STUNNED.", "highlight");
+            this.enemy.stunned = true;
+            effectMsg += " [COMBO: STUN]";
+        }
+        if (this.lastCardId === "DOC_14" && card.id === "SECTION_1983") {
+            this.log(">> COMBO! 'FEDERAL PINCER'. TRIPLE DAMAGE.", "highlight");
+            this.damageEnemy(50); // Bonus 50
+            effectMsg += " [COMBO: CRITICAL]";
+        }
+
+        this.lastCardId = card.id;
         this.log(effectMsg, "combat-msg");
 
         // Remove card
@@ -138,11 +223,19 @@ class GameState {
 
     enemyTurn() {
         if (this.gameOver) return;
-        this.playerShield = 0; // Reset shield at start of enemy turn? Or end? Let's say shield lasts 1 turn.
+        this.playerShield = 0;
+
+        if (this.enemy.stunned) {
+            this.log(`>> ${this.enemy.name} IS STUNNED! TURN SKIPPED.`, "safe");
+            this.enemy.stunned = false;
+            this.turn++;
+            this.drawCard();
+            return;
+        }
 
         this.log(`>> TURN ${this.turn}: ${this.enemy.name} ACTS...`, "log-turn");
 
-        // Pick random attack (Avoid repeating the same one if possible)
+        // Smart AI (No Repeats)
         let attack;
         if (this.enemy.attacks.length > 1 && this.lastAttackIndex !== undefined) {
             let newIndex;
@@ -164,37 +257,36 @@ class GameState {
             this.log(`FEDERAL ANCHOR BLOCKED ${attack.dmg - damage} DAMAGE!`, "safe");
         }
 
-        this.hp -= damage;
+        this.player.stats.resolve -= damage; // Use Logic Stats
         this.log(`${attack.msg} (-${damage} CREDIBILITY)`, "damage-msg");
 
-        // Apply Effects
         if (attack.effect === "HEAL_ENEMY") {
             this.enemy.hp += 20;
             this.log("ENEMY RECOVERS IMMUNITY (GRANT FUNDING).", "danger");
         }
         if (attack.effect === "SPOLIATION") {
-            this.hand.pop(); // Lose a card
+            this.hand.pop();
             this.log("SPOLIATION! YOU LOST A CARD.", "danger");
         }
 
         this.updateStats();
 
         // Check Loss
-        if (this.hp <= 0) {
+        if (this.player.stats.resolve <= 0) {
             this.defeat();
         } else {
             this.turn++;
-            this.drawCard(); // Player draws start of turn
+            this.drawCard();
         }
     }
 
     // --- UTILS ---
 
     damageEnemy(amount) {
-        // Logic: Some cards might bypass "Immunity" or flat damage
-        // For now, simple HP reduction
-        this.enemy.hp -= amount;
-        this.log(`ENEMY TAKES ${amount} DAMAGE TO IMMUNITY SHIELD.`, "safe");
+        // Apply Influence Multiplier
+        const finalDmg = Math.floor(amount * this.player.stats.influence);
+        this.enemy.hp -= finalDmg;
+        this.log(`ENEMY TAKES ${finalDmg} DAMAGE TO IMMUNITY SHIELD.`, "safe");
         this.updateStats();
     }
 
@@ -204,18 +296,31 @@ class GameState {
     }
 
     healPlayer(amount) {
-        this.hp = Math.min(100, this.hp + amount);
+        this.player.stats.resolve = Math.min(100 + (this.player.level * 10), this.player.stats.resolve + amount); // Dynamic Max Calc
         this.log(`PLAYERS RECOVERS ${amount} CREDIBILITY.`, "safe");
         this.updateStats();
     }
 
     updateStats() {
-        document.getElementById('hp-val').innerText = `${this.hp}%`;
+        // UI Updates with correct element IDs from index.html
+        const hpEl = document.getElementById('hp-val');
+        if (hpEl) hpEl.innerText = `${this.player.stats.resolve}`;
+
         document.getElementById('enemy-status').innerText = `IMMUNITY SHIELD: ${Math.max(0, this.enemy.hp)}/${this.enemy.maxHp}`;
 
-        // Visuals
-        if (this.hp < 30) document.getElementById('hp-val').className = "danger";
-        else document.getElementById('hp-val').className = "safe";
+        this.updateCharSheet();
+
+        if (this.player.stats.resolve < 30) hpEl.className = "danger";
+        else hpEl.className = "safe";
+    }
+
+    updateCharSheet() {
+        document.getElementById('player-class').innerText = this.player.classType;
+        document.getElementById('player-level').innerText = this.player.level;
+        document.getElementById('player-xp').innerText = `${this.player.xp}/${this.player.xpToNext}`;
+        document.getElementById('stat-logic').innerText = this.player.stats.logic;
+        document.getElementById('stat-resolve').innerText = this.player.stats.resolve;
+        document.getElementById('stat-influence').innerText = this.player.stats.influence.toFixed(1);
     }
 
     log(msg, className = "combat-msg") {
@@ -248,7 +353,15 @@ class GameState {
         this.gameOver = true;
         this.log(">> JUDGMENT FOR PLAINTIFF!", "safe");
         this.log(">> QUALIFIED IMMUNITY STRIPPED.", "safe");
-        this.log(">> PRESS REFRESH TO TRY ANOTHER CASE.", "system-msg");
+
+        // XP GAIN
+        const xpGain = 100;
+        this.log(`>> CASE CLOSED. GAINED ${xpGain} PRECEDENT POINTS (XP).`, "highlight");
+        if (this.player.gainXP(xpGain)) {
+            this.log(">> LEVEL UP! STATS INCREASED.", "highlight");
+        }
+
+        this.log(">> PRESS REFRESH TO TRY ANOTHER CASE (CAMPAIGN SAVE NOT YET IMPLEMENTED).", "system-msg");
         document.getElementById('enemy-zone').style.borderColor = "#33ff33";
     }
 
@@ -261,6 +374,5 @@ class GameState {
     }
 }
 
-// Start Game
 const game = new GameState();
 game.init();

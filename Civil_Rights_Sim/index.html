@@ -20,6 +20,15 @@
             <div class="status-item">PRESSURE: <span id="pressure-val" class="highlight">0%</span></div>
         </header>
 
+        <!-- CHARACTER SHEET (NEW) -->
+        <div id="char-sheet" class="panel hidden">
+            <div class="status-item">CLASS: <span id="player-class" class="text-white">...</span></div>
+            <div class="status-item">LVL: <span id="player-level" class="highlight">1</span></div>
+            <div class="status-item">XP: <span id="player-xp" class="text-green">0/100</span></div>
+            <div class="status-item">STATS: [LOGIC: <span id="stat-logic">3</span>] [RESOLVE: <span
+                    id="stat-resolve">100</span>] [INFLUENCE: <span id="stat-influence">1.0</span>]</div>
+        </div>
+
         <!-- MAIN GAME AREA -->
         <main id="game-screen">
 
@@ -40,6 +49,12 @@
                     <p class="system-msg">> LOADING VICTORIA COUNTY SIMULATION DATA...</p>
                     <p class="system-msg">> UPLOADING 'PATTERSON ADMISSION' METADATA...</p>
                     <p class="system-msg">> READY. SELECT A CASE FILE TO BEGIN.</p>
+                </div>
+                <!-- CLI INPUT (NEW) -->
+                <div class="cli-container">
+                    <span class="prompt">></span>
+                    <input type="text" id="cli-input" placeholder="ENTER COMMAND (e.g., SUBPOENA, CITE)..."
+                        autocomplete="off">
                 </div>
             </div>
 
