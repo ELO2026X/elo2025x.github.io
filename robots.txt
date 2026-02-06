@@ -1,3 +1,15 @@
+# Optimized for Googlebot and Global Indexing
 User-agent: *
 Allow: /
+Disallow: /private/
+Disallow: /tmp/
+Disallow: /config/
+
+# Specific instructions for Google
+User-agent: Googlebot
+Allow: /
+Allow: /Civil_Rights_Sim/
+Allow: /Intel/
+Allow: /es/
+
 Sitemap: https://elo2026x.github.io/sitemap.xml

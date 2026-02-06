@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spears Hearing Simulator | Civil Shield</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #e0e0e0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .sim-container {
+            max-width: 800px;
+            margin: 4rem auto;
+            padding: 2rem;
+            background: rgba(20, 20, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .judge-screen {
+            background: #000;
+            border: 2px solid #333;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .judge-avatar {
+            font-size: 8rem;
+            color: #333;
+            transition: color 0.3s;
+        }
+
+        .judge-text {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-left: 4px solid var(--primary, #3b82f6);
+            padding: 1rem;
+            font-family: 'Space Grotesk', monospace;
+            font-size: 1.2rem;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1.5rem;
+            color: white;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+            border-radius: 8px;
+        }
+
+        .option-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            font-family: 'Space Grotesk', monospace;
+            color: #888;
+        }
+
+        .danger-level {
+            color: #ef4444;
+        }
+
+        .success-level {
+            color: #10b981;
+        }
+
+        /* Animation classes */
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translate(1px, 1px) rotate(0deg);
+            }
+
+            10% {
+                transform: translate(-1px, -2px) rotate(-1deg);
+            }
+
+            20% {
+                transform: translate(-3px, 0px) rotate(1deg);
+            }
+
+            30% {
+                transform: translate(3px, 2px) rotate(0deg);
+            }
+
+            40% {
+                transform: translate(1px, -1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(-1px, 2px) rotate(-1deg);
+            }
+
+            60% {
+                transform: translate(-3px, 1px) rotate(0deg);
+            }
+
+            70% {
+                transform: translate(3px, 1px) rotate(-1deg);
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(1px, 2px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(1px, -2px) rotate(-1deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="glass-header">
+        <div class="logo-container">
+            <i class="fa-solid fa-gavel logo-icon"></i>
+            <span class="logo-text">SPEARS<span class="highlight">SIM</span></span>
+        </div>
+        <nav>
+            <a href="index.html" class="nav-link">Return to Base</a>
+        </nav>
+    </header>
+
+    <div class="sim-container">
+        <div class="status-bar">
+            <span>CASE: 6:25-CV-75</span>
+            <span id="status-text">STATUS: PENDING SCREENING</span>
+        </div>
+
+        <div class="judge-screen" id="judge-frame">
+            <i class="fa-solid fa-scale-balanced judge-avatar" id="avatar"></i>
+            <div class="judge-text" id="judge-dialogue">
+                "Mr. Ortiz, this is a Spears Hearing to screen for frivolous claims. State your claim concisely."
+            </div>
+        </div>
+
+        <div class="options-grid" id="options-container">
+            <!-- Options injected by JS -->
+        </div>
+    </div>
+
+    <script>
+        const scenario = [
+            {
+                id: 1,
+                question: "Mr. Ortiz, briefly state your claim. Why are you in Federal Court?",
+                options: [
+                    {
+                        text: "They are stalking me! The Sheriff has drones everywhere and they hacked my phone!",
+                        outcome: "dismiss",
+                        feedback: "THE JUDGE SIGHS. 'Mr. Ortiz, that sounds like a conspiracy theory. Case Dismissed as Frivolous.'"
+                    },
+                    {
+                        text: "This is a case of First Amendment Retaliation and Fourth Amendment violations driven by a Grant Fraud scheme.",
+                        outcome: "next",
+                        feedback: "THE JUDGE NODS. 'Go on. Be specific.'"
+                    }
+                ]
+            },
+            {
+                id: 2,
+                question: "Why are you suing the County? Why not just the specific deputy?",
+                options: [
+                    {
+                        text: "Because the Deputy is a puppet! The real enemy is the Shadow Government!",
+                        outcome: "dismiss",
+                        feedback: "JUDGE: 'We don't try Shadow Governments here. Dismissed.'"
+                    },
+                    {
+                        text: "Because under Monell, the County has a 'Pattern and Practice' of retaliation, as seen in Harris v. Marr.",
+                        outcome: "next",
+                        feedback: "JUDGE WRITES NOTES. 'You cited Harris. Okay. Continue.'"
+                    }
+                ]
+            },
+            {
+                id: 3,
+                question: "What specific damages have you suffered?",
+                options: [
+                    {
+                        text: "Emotional distress. My chakra is misaligned because of them.",
+                        outcome: "weak",
+                        feedback: "JUDGE: 'Emotional claims are weak. Do you have anything tangible?'"
+                    },
+                    {
+                        text: "I suffered Special Damages. I lost my job at Spark on Jan 8 due to the false record. $50,000/year loss.",
+                        outcome: "win",
+                        feedback: "JUDGE: 'Lost wages constitute a concrete injury. The Stay is Lifted. Proceed to Discovery.'"
+                    }
+                ]
+            }
+        ];
+
+        let currentStage = 0;
+
+        function renderStage(index) {
+            const data = scenario[index];
+            document.getElementById('judge-dialogue').innerText = data.question;
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            data.options.forEach(opt => {
+                const btn = document.createElement('div');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => handleChoice(opt);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleChoice(option) {
+            const judge = document.getElementById('judge-frame');
+            const avatar = document.getElementById('avatar');
+
+            document.getElementById('judge-dialogue').innerText = option.feedback;
+
+            if (option.outcome === 'dismiss') {
+                judge.classList.add('shake');
+                avatar.style.color = '#ef4444'; // Red
+                document.getElementById('options-container').innerHTML = '<div class="option-btn" onclick="location.reload()">CASE DISMISSED (TRY AGAIN)</div>';
+            } else if (option.outcome === 'next') {
+                avatar.style.color = '#3b82f6'; // Blue
+                setTimeout(() => {
+                    currentStage++;
+                    renderStage(currentStage);
+                    avatar.style.color = '#333';
+                }, 2000);
+            } else if (option.outcome === 'win') {
+                avatar.style.color = '#10b981'; // Green
+                document.getElementById('status-text').innerText = "STATUS: STAY LIFTED";
+                document.getElementById('status-text').classList.add('success-level');
+                document.getElementById('options-container').innerHTML = '<div class="option-btn" style="border-color:#10b981">MISSION ACCOMPLISHED. HAMMER AUTHORIZED.</div>';
+            } else if (option.outcome === 'weak') {
+                avatar.style.color = '#f59e0b'; // Orange
+                setTimeout(() => {
+                    // Retry step
+                    renderStage(currentStage);
+                }, 2000);
+            }
+        }
+
+        // Start
+        renderStage(0);
+    </script>
+</body>
+
+</html>
