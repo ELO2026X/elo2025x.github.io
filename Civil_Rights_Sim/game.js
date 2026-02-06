@@ -38,22 +38,75 @@ class GameState {
         });
     }
 
-    // --- CLI PARSER ---
+    // --- CLI PARSER (ENHANCED NLP) ---
     parseCommand(cmd) {
-        if (this.gameOver) return;
+        if (this.gameOver && cmd.toUpperCase().trim() !== "CONTINUE" && cmd.toUpperCase().trim() !== "HOME") return;
 
         const raw = cmd.toUpperCase().trim();
+        this.log(`> COMMAND: ${raw}`, "system-msg");
+
+        // 1. EXACT COMMANDS (Legacy)
         const args = raw.split(" ");
         const action = args[0];
 
-        this.log(`> COMMAND: ${raw}`, "system-msg");
+        // 2. NATURAL LANGUAGE KEYWORD SCAN
+        const has = (term) => raw.includes(term);
 
+        // --- CAMPAIGN FLOW ---
+        if (action === "CONTINUE") {
+            if (this.gameOver && this.enemy.hp <= 0) {
+                this.nextCase();
+            } else {
+                this.log(">> CANNOT CONTINUE. CASE STILL ACTIVE OR LOST.", "danger");
+            }
+            return;
+        }
+        if (action === "HOME") {
+            window.location.reload();
+            return;
+        }
+
+        // --- CONSTITUTIONAL RIGHTS ---
+        if (has("INVOKE") && (has("RIGHTS") || has("CONSTITUTION") || has("5TH") || has("FIFTH"))) {
+            this.log(">> CONSTITUTIONAL SHIELD ACTIVATED.", "highlight");
+            this.log(">> 5TH AMENDMENT INVOKED. SILENCE MAINTAINED.", "safe");
+            this.playerShield += 50;
+            this.healPlayer(10);
+            return;
+        }
+
+        // --- OBJECTIONS ---
+        if (has("OBJECT") || has("OBJECTION")) {
+            if (has("HEARSAY")) {
+                this.log(">> OBJECTION SUSTAINED (HEARSAY).", "highlight");
+                this.damageEnemy(10);
+            } else if (has("RELEVANCE")) {
+                this.log(">> OBJECTION SUSTAINED (RELEVANCE).", "highlight");
+                this.damageEnemy(10);
+            } else {
+                this.log(">> OBJECTION NOTED. PLEASE SPECIFY GROUNDS (e.g., HEARSAY).", "system-msg");
+            }
+            return;
+        }
+
+        // --- MOTIONS ---
+        if (has("MOVE") || has("MOTION")) {
+            if (has("MISTRIAL")) {
+                this.log(">> MOTION FOR MISTRIAL DENIED. BUT RECORD PRESERVED.", "safe");
+                this.player.gainXP(20);
+            } else if (has("DISMISS")) {
+                this.log(">> MOTION TO DISMISS FILED. JUDGE GARZA IGNORES IT.", "danger");
+            }
+            return;
+        }
+
+        // --- STANDARD COMMANDS ---
         switch (action) {
             case "HELP":
-                this.log("COMMANDS: SUBPOENA [TARGET], CITE [CASE], QUERY [DATA], SCAN", "system-msg");
+                this.log("TRY: 'INVOKE RIGHTS', 'OBJECT TO HEARSAY', 'SUBPOENA EMAILS', 'CONTINUE'...", "system-msg");
                 break;
             case "SUBPOENA":
-                if (args[1] === "BODY_CAM" && this.enemy.name.includes("VPD")) {
+                if (args[1] === "BODY_CAM" && (this.enemy.name.includes("VPD") || this.enemy.name.includes("TROOPER"))) {
                     this.log(">> VIDEO FILE CORRUPTED (CODE 10). SPOLIATION CONFIRMED (+2 CARDS).", "safe");
                     this.drawCard(); this.drawCard();
                 } else if (args[1] === "EMAILS") {
@@ -71,7 +124,7 @@ class GameState {
                     this.log(">> BRADY CLAIM ASSERTED. ENEMY STUNNED.", "safe");
                     this.enemy.stunned = true;
                 } else {
-                    this.log(">> UNKNOWN CITATION.", "danger");
+                    this.log(">> UNKNOWN CITATION. TRY: MONELL, BRADY.", "danger");
                 }
                 break;
             case "QUERY":
@@ -87,7 +140,15 @@ class GameState {
                 this.healPlayer(15);
                 break;
             default:
-                this.log(">> SYNTAX ERROR. COMMAND NOT RECOGNIZED.", "danger");
+                // AI "Thinking" Simulation
+                if (raw.length > 10) {
+                    this.log(">> ANALYZING LEGAL ARGUMENT...", "system-msg");
+                    setTimeout(() => {
+                        this.log(">> ARGUMENT TOO COMPLEX FOR LOCAL COURT. SAVE FOR FEDERAL APPEAL.", "danger");
+                    }, 800);
+                } else {
+                    this.log(">> SYNTAX ERROR. TRY 'HELP'.", "danger");
+                }
         }
     }
 
@@ -265,8 +326,10 @@ class GameState {
             this.log("ENEMY RECOVERS IMMUNITY (GRANT FUNDING).", "danger");
         }
         if (attack.effect === "SPOLIATION") {
-            this.hand.pop();
-            this.log("SPOLIATION! YOU LOST A CARD.", "danger");
+            if (this.hand.length > 0) {
+                this.hand.pop();
+                this.log("SPOLIATION! YOU LOST A CARD.", "danger");
+            }
         }
 
         this.updateStats();
@@ -306,7 +369,8 @@ class GameState {
         const hpEl = document.getElementById('hp-val');
         if (hpEl) hpEl.innerText = `${this.player.stats.resolve}`;
 
-        document.getElementById('enemy-status').innerText = `IMMUNITY SHIELD: ${Math.max(0, this.enemy.hp)}/${this.enemy.maxHp}`;
+        const enemyStatus = document.getElementById('enemy-status');
+        if (enemyStatus) enemyStatus.innerText = `IMMUNITY SHIELD: ${Math.max(0, this.enemy.hp)}/${this.enemy.maxHp}`;
 
         this.updateCharSheet();
 
@@ -361,8 +425,24 @@ class GameState {
             this.log(">> LEVEL UP! STATS INCREASED.", "highlight");
         }
 
-        this.log(">> PRESS REFRESH TO TRY ANOTHER CASE (CAMPAIGN SAVE NOT YET IMPLEMENTED).", "system-msg");
+        this.log(">> TYPE 'CONTINUE' TO PROCEED TO NEXT CASE.", "system-msg");
         document.getElementById('enemy-zone').style.borderColor = "#33ff33";
+
+        // Add Continue Button
+        const btn = document.createElement('button');
+        btn.innerText = ">> CONTINUE >>";
+        btn.className = "continue-btn";
+        btn.onclick = () => this.nextCase();
+        document.getElementById('log-content').appendChild(btn);
+    }
+
+    nextCase() {
+        this.currentCaseIndex++;
+        if (this.currentCaseIndex >= SCENARIOS.length) {
+            this.currentCaseIndex = 0; // Loop 
+            this.log(">> ALL CASES CLEARED. RESTARTING LOOP (NG+)...", "system-msg");
+        }
+        this.startScenario(this.currentCaseIndex);
     }
 
     defeat() {

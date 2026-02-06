@@ -190,6 +190,23 @@ body {
     border: 1px solid var(--safe);
 }
 
+.continue-btn {
+    background: var(--safe);
+    color: #000;
+    border: none;
+    padding: 10px;
+    margin-top: 10px;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+}
+
+.continue-btn:hover {
+    background: #fff;
+}
+
 #card-container {
     display: flex;
     gap: 15px;
