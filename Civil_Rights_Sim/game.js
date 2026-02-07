@@ -1,30 +1,28 @@
-import { SCENARIOS } from './scenarios.js';
-import { CARDS } from './cards.js';
 import { Player } from './player.js';
 import { UIManager } from './ui.js';
+import { CardManager } from './cards_manager.js';
+import { CampaignManager } from './campaign.js';
 
 class GameState {
     constructor() {
         this.player = new Player();
-        this.ui = new UIManager(this); // UI Module
-        this.currentCaseIndex = 0;
+        this.ui = new UIManager(this);
+        this.cardManager = new CardManager(this);
+        this.campaign = new CampaignManager(this);
 
         // Game State
-        this.deck = [];
-        this.hand = [];
         this.enemy = null;
         this.turn = 1;
         this.gameOver = false;
         this.playerShield = 0;
-        this.lastCardId = null;
 
-        // Bind CLI - Still kept here for event listening
+        // Bind CLI
         this.setupCLI();
         this.updateStats(); // Init UI
     }
 
     init() {
-        this.ui.showCaseSelection(SCENARIOS);
+        this.ui.showCaseSelection(this.campaign.scenarios);
         this.log("SYSTEM READY. WAITING FOR INPUT...", "system-msg");
         this.log("TIP: TYPE 'HELP' IN COMMAND LINE FOR ADVANCED OPTIONS.", "system-msg");
 
@@ -34,73 +32,18 @@ class GameState {
     }
 
     // --- LOGIC ---
+    // Delegated to CampaignManager mostly, but GameState holds the active state
 
     startScenario(index) {
-        this.currentCaseIndex = index;
-        const scenario = SCENARIOS[index];
-
-        // Scaling Logic
-        const scaleMult = 1 + ((this.player.level - 1) * 0.15);
-        const uniqueHp = Math.floor(scenario.hp * scaleMult);
-        const tierLabel = scenario.tier === 3 ? "BOSS" : (scenario.tier === 2 ? "ELITE" : "MINOR");
-
-        this.enemy = {
-            name: scenario.enemy,
-            hp: uniqueHp,
-            maxHp: uniqueHp,
-            tier: scenario.tier,
-            immunity: scenario.immunity,
-            attacks: scenario.attacks,
-            art: scenario.art,
-            desc: scenario.desc,
-            stunned: false
-        };
-
-        if (this.player.stats.resolve <= 0) this.player.stats.resolve = 100;
-
-        // Reset State
-        this.playerShield = 0;
-        this.turn = 1;
-        this.gameOver = false;
-        this.lastCardId = null;
-        this.setupDeck();
-        this.drawHand(this.player.stats.logic);
-
-        // Update UI Visuals
-        this.ui.clearLog();
-        this.ui.updateEnemyVisuals(this.enemy, tierLabel);
-
-        this.log(`>> INITIALIZING ${scenario.title}...`, "system-msg");
-        this.log(`>> THREAT LEVEL: ${tierLabel} (SCALING ACTIVE)`, "highlight");
-        this.log(scenario.intro, "system-msg");
-
-        this.updateStats();
-        this.renderHand();
+        this.campaign.currentCaseIndex = index;
+        this.campaign.loadScenario(index);
     }
 
     playCard(cardIndex) {
-        if (this.gameOver) return;
+        this.cardManager.playCard(cardIndex);
+    }
 
-        const card = this.hand[cardIndex];
-        this.log(`> PLAYER PLAYS: ${card.title}`, "combat-msg");
-
-        // 1. Base Effect
-        let effectMsg = card.effect(this);
-
-        // 2. Data-Driven Combo Check
-        if (card.combo && this.lastCardId === card.combo.triggerId) {
-            this.log(card.combo.msg, "highlight");
-            effectMsg += card.combo.effect(this);
-        }
-
-        this.lastCardId = card.id;
-        this.log(effectMsg, "combat-msg");
-
-        // Remove & Render
-        this.hand.splice(cardIndex, 1);
-        this.renderHand();
-
-        // Check Win
+    checkWinCondition() {
         if (this.enemy.hp <= 0) {
             this.victory();
         } else {
@@ -140,9 +83,10 @@ class GameState {
             this.log("ENEMY RECOVERS IMMUNITY (GRANT FUNDING).", "danger");
         }
         if (attack.effect === "SPOLIATION") {
-            if (this.hand.length > 0) {
-                this.hand.pop();
+            if (this.cardManager.hand.length > 0) {
+                this.cardManager.hand.pop();
                 this.log("SPOLIATION! YOU LOST A CARD.", "danger");
+                this.ui.renderHand(this.cardManager.hand);
             }
         }
 
@@ -158,7 +102,7 @@ class GameState {
 
     prepareNextTurn() {
         this.turn++;
-        this.drawCard();
+        this.cardManager.drawCard();
     }
 
     selectEnemyAttack() {
@@ -177,39 +121,9 @@ class GameState {
         }
     }
 
-    // --- DECK MANAGEMENT ---
-    setupDeck() {
-        this.deck = [];
-        CARDS.forEach(card => this.deck.push(card, card, card));
-        this.shuffleDeck();
-    }
-
-    shuffleDeck() {
-        for (let i = this.deck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
-        }
-    }
-
-    drawHand(count) {
-        for (let i = 0; i < count; i++) this.drawCard();
-    }
-
-    drawCard() {
-        if (this.deck.length > 0) {
-            this.hand.push(this.deck.pop());
-            this.renderHand();
-        } else {
-            this.log("DECK EMPTY! SHUFFLING DISCARD...", "system-msg");
-            this.setupDeck();
-            this.hand.push(this.deck.pop());
-        }
-    }
-
     // --- UTILS ---
     log(msg, className) { this.ui.log(msg, className); }
     updateStats() { this.ui.updateStats(this.player, this.enemy || { hp: 0, maxHp: 100 }); }
-    renderHand() { this.ui.renderHand(this.hand); }
 
     damageEnemy(amount) {
         const finalDmg = Math.floor(amount * this.player.stats.influence);
@@ -236,7 +150,7 @@ class GameState {
                 classType: this.player.classType,
                 stats: this.player.stats
             },
-            campaign: { caseIndex: this.currentCaseIndex }
+            campaign: { caseIndex: this.campaign.currentCaseIndex }
         };
         localStorage.setItem("CIVIL_RIGHTS_RPG_V1", JSON.stringify(data));
         this.log(">> GAME SAVED TO SUBSTRATE STORAGE.", "safe");
@@ -248,11 +162,11 @@ class GameState {
 
         const data = JSON.parse(raw);
         this.player.loadData(data.player);
-        this.currentCaseIndex = data.campaign.caseIndex;
+        this.campaign.currentCaseIndex = data.campaign.caseIndex;
 
         this.log(`>> PROFILE LOADED: LEVEL ${this.player.level} ${this.player.classType}`, "safe");
         this.updateStats();
-        this.startScenario(this.currentCaseIndex);
+        this.campaign.loadScenario(this.campaign.currentCaseIndex);
     }
 
     resetGame() {
@@ -287,12 +201,7 @@ class GameState {
     }
 
     nextCase() {
-        this.currentCaseIndex++;
-        if (this.currentCaseIndex >= SCENARIOS.length) {
-            this.currentCaseIndex = 0;
-            this.log(">> ALL CASES CLEARED. NG+ LOOP...", "system-msg");
-        }
-        this.startScenario(this.currentCaseIndex);
+        this.campaign.nextScenario();
     }
 
     // --- CLI ---
@@ -356,7 +265,7 @@ class GameState {
             case "SUBPOENA":
                 if (args[1] === "BODY_CAM" && (this.enemy.name.includes("VPD") || this.enemy.name.includes("TROOPER"))) {
                     this.log(">> VIDEO FILE CORRUPTED. SPOLIATION.", "safe");
-                    this.drawCard(); this.drawCard();
+                    this.cardManager.drawCard(); this.cardManager.drawCard();
                 } else if (args[1] === "EMAILS") {
                     this.log(">> 4,000 EMAILS DUMPED. PARSING...", "safe");
                     this.damageEnemy(15);

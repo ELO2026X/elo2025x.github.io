@@ -96,5 +96,48 @@ export const CARDS = [
             state.damageEnemy(10);
             return "TREASURY OIG ALERTED. GRANT FRAUD DETECTED.";
         }
+    },
+    // --- GOD MODE PROTOCOL CARDS (FEB 07) ---
+    {
+        id: "FELONY_ARBITRAGE",
+        title: "FELONY ARBITRAGE",
+        cost: 4,
+        type: "Market",
+        desc: "Short the Bond Rating. Converts Enemy HP into Credibility.",
+        effect: (state) => {
+            state.damageEnemy(40);
+            state.healPlayer(40);
+            return "SHORTED THE BOND RATING. WEALTH TRANSFER COMPLETE.";
+        },
+        combo: {
+            triggerId: "GRANT_AUDIT",
+            name: "THE RICO PREDICATE",
+            msg: "COMBO! 'RICO PREDICATE' ACTIVATED. ASSET SEIZURE.",
+            effect: (state) => {
+                state.damageEnemy(60); // Total 100 DMG
+                return " [COMBO: BANKRUPTCY]";
+            }
+        }
+    },
+    {
+        id: "ARSENIC_SUBSTRATE",
+        title: "SUBSTRATE COLLAPSE",
+        cost: 0,
+        type: "Substrate",
+        desc: "The Water is 13ppb. Bypasses all Immunity Shields (Direct HP DMG).",
+        effect: (state) => {
+            state.damageEnemyHP(30); // Direct HP damage check
+            return "REALITY ASSERTED. IMMUNITY BYPASSED.";
+        },
+        combo: {
+            triggerId: "DATA_MINING",
+            name: "THE POISONED WELL",
+            msg: "COMBO! 'THE POISONED WELL'. SYSTEMIC SHOCK.",
+            effect: (state) => {
+                state.enemy.stunned = true;
+                state.damageEnemyHP(20);
+                return " [COMBO: STUN + TOXICITY]";
+            }
+        }
     }
 ];
